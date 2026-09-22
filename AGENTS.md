@@ -41,6 +41,17 @@ serve from 127.0.0.1 only, block every non-loopback request and count it as a fa
 and never pass browser flags that weaken sandboxing. Screenshots and the report are
 the only outputs.
 
+## Workflows
+
+`.github/workflows/theme-*.yml` are the reusable workflows every theme calls at `@v1`;
+their inputs are part of the semver contract. Each takes `nnw-theme-version` (default
+`1`) and `tool-ref` (default `v1`, the ref whose `.github/actions/setup` it checks out,
+because a reusable workflow's `./` paths resolve in the caller). To try a change end
+to end, point a scratch theme's callers at a branch and pass `tool-ref: <branch>` and
+`nnw-theme-version: next`. `scripts/packed/check.sh` runs a packed tarball against the
+starter and ember; `scripts/packed/ember-baseline-linux.txt` holds ember's known
+failures until ember is fixed. Run `actionlint` after changing workflows.
+
 ## Publishing
 
 Only `.github/workflows/publish.yml` publishes, on a `vX.Y.Z` tag, through npm
