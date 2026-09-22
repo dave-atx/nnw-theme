@@ -1,0 +1,55 @@
+{
+	"name": "nnw-theme",
+	"version": "0.0.0",
+	"description": "Create, preview, check, and publish a NetNewsWire theme.",
+	"license": "Apache-2.0",
+	"author": "Dave Marquard",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/dave-atx/nnw-theme.git"
+	},
+	"homepage": "https://github.com/dave-atx/nnw-theme#readme",
+	"bugs": "https://github.com/dave-atx/nnw-theme/issues",
+	"keywords": [
+		"netnewswire",
+		"theme",
+		"nnwtheme"
+	],
+	"type": "module",
+	"bin": {
+		"nnw-theme": "dist/cli.js"
+	},
+	"files": [
+		"dist/",
+		"assets/",
+		"lldb/nnwdump.py",
+		"THIRD_PARTY_NOTICES.md",
+		"LICENSE",
+		"README.md"
+	],
+	"engines": {
+		"node": ">=24"
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.build.json && node scripts/fetch-netnewswire.ts",
+		"fetch-netnewswire": "node scripts/fetch-netnewswire.ts",
+		"lint": "biome check .",
+		"fix": "biome check --write .",
+		"typecheck": "tsc --noEmit",
+		"test": "node --test \"test/**/*.test.ts\"",
+		"prepack": "npm run build"
+	},
+	"dependencies": {
+		"@inquirer/prompts": "8.7.2",
+		"entities": "8.1.0",
+		"fflate": "0.8.3",
+		"htmlparser2": "12.0.0",
+		"playwright-core": "1.64.0-alpha-2026-09-14",
+		"smol-toml": "1.8.0"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.5.14",
+		"@types/node": "24.13.6",
+		"typescript": "7.0.2"
+	}
+}
