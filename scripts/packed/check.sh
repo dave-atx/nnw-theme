@@ -4,9 +4,9 @@
 #
 #   scripts/packed/check.sh nnw-theme-X.Y.Z.tgz TEMPLATE_DIR EMBER_DIR
 #
-# Ember's expected failures live in scripts/packed/ember-baseline-<os>.txt; the check
-# fails when ember's report differs from it. Without a baseline for this OS, ember's
-# result is reported but does not fail the run.
+# Ember must pass. A platform where it has known failures can list them in
+# scripts/packed/ember-baseline-<os>.txt (its check-report.txt without the version line);
+# then the run fails whenever ember's report differs from that baseline.
 set -euo pipefail
 
 tarball=$(realpath "$1")
@@ -49,7 +49,7 @@ if [ -f "$baseline" ]; then
     exit 1
   fi
   echo "Ember matches its baseline (check exit $status)."
-else
-  echo "No ember baseline for this OS; ember's check exited $status:"
-  printf '%s\n' "$report"
+elif [ "$status" -ne 0 ]; then
+  echo "Ember's check failed." >&2
+  exit "$status"
 fi

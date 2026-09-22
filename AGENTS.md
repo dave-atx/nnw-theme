@@ -49,8 +49,8 @@ their inputs are part of the semver contract. Each takes `nnw-theme-version` (de
 because a reusable workflow's `./` paths resolve in the caller). To try a change end
 to end, point a scratch theme's callers at a branch and pass `tool-ref: <branch>` and
 `nnw-theme-version: next`. `scripts/packed/check.sh` runs a packed tarball against the
-starter and ember; `scripts/packed/ember-baseline-linux.txt` holds ember's known
-failures until ember is fixed. Run `actionlint` after changing workflows.
+starter and ember, and both must pass. Results depend on installed fonts, so a local
+Linux machine can see failures CI does not; CI is the reference. Run `actionlint` after changing workflows.
 
 ## Publishing
 

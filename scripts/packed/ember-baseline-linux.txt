@@ -1,5 +1,0 @@
-FAIL
-sample-data · iPhone · light: horizontal document overflow
-sample-data · iPhone · dark: horizontal document overflow
-substack-footnote · iPhone · light: horizontal document overflow
-substack-footnote · iPhone · dark: horizontal document overflow
