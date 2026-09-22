@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseToml } from "smol-toml";
+import { BUILT_IN_FIXTURE_NAMES } from "./commands.ts";
 import { buildPlist, type PlistDict, parsePlist } from "./plist.ts";
 
 export const REQUIRED_THEME_FILES = ["Info.plist", "template.html", "stylesheet.css"] as const;
@@ -9,7 +10,7 @@ export const PLACEHOLDER_MARKER = ".nnw-theme-uninitialized";
 export const IDENTITY_START = "<!-- nnw-theme-identity:start -->";
 export const IDENTITY_END = "<!-- nnw-theme-identity:end -->";
 /** The fixtures that ship in the package; a repository's own copy of one wins. */
-export const BUILT_IN_FIXTURES = ["article", "kitchen-sink"] as const;
+export const BUILT_IN_FIXTURES = BUILT_IN_FIXTURE_NAMES;
 
 /** A user-actionable theme project error. */
 export class ThemeError extends Error {

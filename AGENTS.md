@@ -16,6 +16,7 @@ local modules with their `.ts` extension.
 npm ci
 npm run fetch-netnewswire    # once: the pinned NetNewsWire rendering files
 npm run fix && npm run lint && npm run typecheck && npm test
+python3 -m unittest discover -s lldb   # after changing lldb/nnwdump.py (Python 3.9, stdlib only)
 ```
 
 Run the tool against a theme checkout with `node /path/to/nnw-theme/src/cli.ts check`
@@ -39,6 +40,17 @@ Theme and fixture HTML/JavaScript are untrusted executable inputs. Browser check
 serve from 127.0.0.1 only, block every non-loopback request and count it as a failure,
 and never pass browser flags that weaken sandboxing. Screenshots and the report are
 the only outputs.
+
+## Workflows
+
+`.github/workflows/theme-*.yml` are the reusable workflows every theme calls at `@v1`;
+their inputs are part of the semver contract. Each takes `nnw-theme-version` (default
+`1`) and `tool-ref` (default `v1`, the ref whose `.github/actions/setup` it checks out,
+because a reusable workflow's `./` paths resolve in the caller). To try a change end
+to end, point a scratch theme's callers at a branch and pass `tool-ref: <branch>` and
+`nnw-theme-version: next`. `scripts/packed/check.sh` runs a packed tarball against the
+starter and ember, and both must pass. Results depend on installed fonts, so a local
+Linux machine can see failures CI does not; CI is the reference. Run `actionlint` after changing workflows.
 
 ## Publishing
 
