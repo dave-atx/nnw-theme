@@ -19,12 +19,20 @@ type Handler = (args: Args) => void | Promise<void>;
 
 // Loaded on demand, so a quick command never pays for Playwright or the prompts.
 const HANDLERS: Record<string, () => Promise<{ default: Handler }>> = {
+	init: () => import("./commands/init.ts"),
 	setup: () => import("./commands/setup.ts"),
 	preview: () => import("./commands/preview.ts"),
 	render: () => import("./commands/render.ts"),
 	check: () => import("./commands/check.ts"),
 	screenshot: () => import("./commands/screenshot.ts"),
 	package: () => import("./commands/package.ts"),
+	capture: () => import("./commands/capture.ts"),
+	bump: () => import("./commands/bump.ts"),
+	"marketplace enable": () => import("./commands/marketplace.ts"),
+	guide: () => import("./commands/guide.ts"),
+	completion: () => import("./commands/completion.ts"),
+	update: () => import("./commands/update.ts"),
+	"release-check": () => import("./commands/release-check.ts"),
 };
 
 class UsageError extends Error {}

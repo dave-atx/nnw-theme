@@ -16,6 +16,7 @@ local modules with their `.ts` extension.
 npm ci
 npm run fetch-netnewswire    # once: the pinned NetNewsWire rendering files
 npm run fix && npm run lint && npm run typecheck && npm test
+python3 -m unittest discover -s lldb   # after changing lldb/nnwdump.py (Python 3.9, stdlib only)
 ```
 
 Run the tool against a theme checkout with `node /path/to/nnw-theme/src/cli.ts check`

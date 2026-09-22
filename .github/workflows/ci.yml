@@ -29,8 +29,12 @@ jobs:
           key: webkit-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install WebKit for the browser tests
         run: node src/cli.ts setup --with-deps
+      - name: Install the shells completion tests source
+        run: sudo apt-get install --yes --no-install-recommends fish zsh
       - name: Lint, type-check, and test
         run: |
           npm run lint
           npm run typecheck
           npm test
+      - name: Test nnwdump (runs in Xcode's lldb Python)
+        run: python3 -m unittest discover -s lldb -v

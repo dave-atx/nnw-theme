@@ -22,6 +22,7 @@ import {
 	renderSite,
 	writeGallery,
 } from "../render.ts";
+import { staleStubs } from "../stubs.ts";
 import { printWarnings } from "./package.ts";
 import { CheckProgress } from "./progress.ts";
 
@@ -48,6 +49,7 @@ export default async function check({ values }: Args): Promise<void> {
 	const root = findRoot();
 	const theme = findTheme(root);
 	console.log(`nnw-theme ${version()}`);
+	printWarnings(staleStubs(root));
 	const targets = checkTargets(extraFixtures(root));
 	const expected = expectations(root, targets);
 	const progress = new CheckProgress(targets.length);

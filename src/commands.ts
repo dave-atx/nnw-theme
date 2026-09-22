@@ -41,6 +41,8 @@ export const GUIDE_TOPICS = [
 	"publishing",
 ] as const;
 export const SHELLS = ["fish", "zsh", "bash"] as const;
+/** Fixtures that ship in the package; also in project.ts, which reads them. */
+export const BUILT_IN_FIXTURE_NAMES = ["article", "kitchen-sink"] as const;
 
 const allowRemoteMedia: OptionSpec = {
 	name: "allow-remote-media",

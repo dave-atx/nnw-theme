@@ -7,9 +7,11 @@ import { createHash } from "node:crypto";
 import {
 	cpSync,
 	existsSync,
+	lstatSync,
 	mkdirSync,
 	readdirSync,
 	readFileSync,
+	readlinkSync,
 	renameSync,
 	rmSync,
 	writeFileSync,
@@ -49,6 +51,12 @@ const INIT_ARGS = [
 const INTENDED: [RegExp, string][] = [
 	[/uv run nnw-theme/g, "npx nnw-theme@1"],
 	[/^NetNewsWire .* rendering inputs are (ready|already verified)\.\n/gm, ""],
+];
+
+// Output only the port has on purpose. Removed from the port's side before comparing.
+const PORT_ONLY: RegExp[] = [
+	/^nnw-theme \d\S*\n/gm,
+	/^warning: \S+ (is missing; add the current stub|has no nnw-theme-stub marker|is stub ).*\n/gm,
 ];
 
 const { values } = parseArgs({
@@ -156,6 +164,31 @@ interface Input {
 	node: string;
 }
 
+/** Initialize an untouched template copy with each tool and compare the results. */
+function compareInit(template: string, differences: Differences): void {
+	const base = join(WORK, "init");
+	const copies = { py: join(base, "py"), node: join(base, "node") };
+	for (const copy of Object.values(copies)) exportTree(template, copy);
+	const py = python(template, INIT_ARGS, copies.py, true);
+	const port = node(INIT_ARGS, copies.node, true);
+	if (py.status !== port.status) differences.add(`init: exit ${py.status} vs ${port.status}`);
+	differences.compareText("init stdout", py.stdout, port.stdout);
+	differences.compareText("init stderr", py.stderr, port.stderr);
+	const tracked = (root: string) => files(root).filter((path) => !path.startsWith(".cache/"));
+	const left = tracked(copies.py).sort();
+	const right = tracked(copies.node).sort();
+	differences.compareText("init: files", left.join("\n"), right.join("\n"));
+	for (const path of left.filter((item) => right.includes(item))) {
+		const read = (root: string) =>
+			lstatSync(join(root, path)).isSymbolicLink()
+				? `-> ${readlinkSync(join(root, path))}`
+				: readFileSync(join(root, path), "latin1");
+		// Byte for byte: the files are the repository's, not the tools' messages.
+		if (read(copies.py) !== read(copies.node)) differences.add(`init: ${path} differs`);
+	}
+	console.log(`init: compared ${left.length} files`);
+}
+
 function prepareStarter(template: string): Input {
 	const base = join(WORK, "starter");
 	const py = join(base, "py");
@@ -255,8 +288,9 @@ class Differences {
 	add(message: string): void {
 		this.items.push(message);
 	}
-	compareText(label: string, python: string, port: string): void {
+	compareText(label: string, python: string, output: string): void {
 		const expected = intended(python);
+		const port = PORT_ONLY.reduce((text, pattern) => text.replace(pattern, ""), output);
 		if (expected === port) return;
 		const a = expected.split("\n");
 		const b = port.split("\n");
@@ -410,6 +444,7 @@ function main(): number {
 	}
 	if (wanted("ember")) inputs.push(prepareEmber(template, ember));
 	const differences = new Differences();
+	if (wanted("init")) compareInit(template, differences);
 	const timings: string[] = [];
 	const notes: string[] = [];
 	for (const input of inputs) {
@@ -435,10 +470,7 @@ function main(): number {
 			differences.compareText(
 				`${input.name}: check-report.txt`,
 				readFileSync(join(input.py, "build", "check-report.txt"), "utf8"),
-				readFileSync(join(input.node, "build", "check-report.txt"), "utf8").replace(
-					/^nnw-theme \S+\n/m,
-					"",
-				),
+				readFileSync(join(input.node, "build", "check-report.txt"), "utf8"),
 			);
 			const mismatches: string[] = [];
 			compareTrees(
@@ -453,7 +485,8 @@ function main(): number {
 	}
 	for (const line of [...timings, ...notes]) console.log(line);
 	if (!differences.items.length) {
-		console.log(`No differences across ${inputs.map((input) => input.name).join(" and ")}.`);
+		const names = [...(wanted("init") ? ["init"] : []), ...inputs.map((input) => input.name)];
+		console.log(`No differences across ${names.join(", ")}.`);
 		return 0;
 	}
 	console.log(`${differences.items.length} difference(s):`);

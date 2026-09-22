@@ -8,8 +8,11 @@ for `--check`, `playwright-cli` with WebKit for the Python side.
 node scripts/parity/run.ts                  # clones the template and ember into .cache/parity/
 node scripts/parity/run.ts --template ../netnewswire-theme-template --ember ../ember-nnw-theme
 node scripts/parity/run.ts --check          # also run check on both and compare results
-node scripts/parity/run.ts --only ember     # starter, broken, failing (with --check), or ember
+node scripts/parity/run.ts --only ember     # init, starter, broken, failing (with --check), or ember
 ```
+
+**init** runs each tool's `init` with the CI's fixed answers on an untouched copy of
+the template and compares the output and every resulting file byte for byte.
 
 Inputs, each prepared once and copied so both tools see the same files:
 
