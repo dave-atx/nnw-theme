@@ -19,7 +19,11 @@ type Handler = (args: Args) => void | Promise<void>;
 
 // Loaded on demand, so a quick command never pays for Playwright or the prompts.
 const HANDLERS: Record<string, () => Promise<{ default: Handler }>> = {
+	setup: () => import("./commands/setup.ts"),
+	preview: () => import("./commands/preview.ts"),
 	render: () => import("./commands/render.ts"),
+	check: () => import("./commands/check.ts"),
+	screenshot: () => import("./commands/screenshot.ts"),
 	package: () => import("./commands/package.ts"),
 };
 

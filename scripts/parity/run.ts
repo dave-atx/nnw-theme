@@ -18,12 +18,16 @@ import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { readZip } from "../../src/zip.ts";
+import { pixelDifference } from "./png.ts";
 
 const TOOL = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const WORK = join(TOOL, ".cache", "parity");
 const TEMPLATE_URL = "https://github.com/dave-atx/netnewswire-theme-template.git";
 const TEMPLATE_TAG = "v1.0.3";
 const EMBER_URL = "https://github.com/dave-atx/ember-nnw-theme.git";
+// What the template's CI installs; it runs the same WebKit build as the pinned
+// playwright-core, so screenshots are comparable.
+const PLAYWRIGHT_CLI = "@playwright/cli@0.1.20";
 // The CI's fixed answers for initializing the untouched template.
 const INIT_ARGS = [
 	"init",
@@ -63,12 +67,18 @@ interface Run {
 	seconds: number;
 }
 
-function run(command: string, args: string[], cwd: string, allowFailure = false): Run {
+function run(
+	command: string,
+	args: string[],
+	cwd: string,
+	allowFailure = false,
+	env: NodeJS.ProcessEnv = {},
+): Run {
 	const started = performance.now();
 	const result = spawnSync(command, args, {
 		cwd,
 		encoding: "utf8",
-		env: { ...process.env, NO_COLOR: "1" },
+		env: { ...process.env, NO_COLOR: "1", ...env },
 	});
 	const outcome = {
 		status: result.status ?? 1,
@@ -100,13 +110,20 @@ function exportTree(source: string, destination: string): void {
 	if (extract.status !== 0) throw new Error(`could not extract ${source}`);
 }
 
+/** The Python tool's playwright-cli, installed once into the work directory. */
+function playwrightCliPath(): string {
+	const prefix = join(WORK, "playwright-cli");
+	if (!existsSync(join(prefix, "node_modules", ".bin", "playwright-cli"))) {
+		run("npm", ["install", "--silent", "--prefix", prefix, PLAYWRIGHT_CLI], TOOL);
+	}
+	return `${join(prefix, "node_modules", ".bin")}:${process.env.PATH}`;
+}
+
 function python(template: string, args: string[], cwd: string, allowFailure = false): Run {
-	return run(
-		"uv",
-		["run", "--quiet", "--project", template, "nnw-theme", ...args],
-		cwd,
-		allowFailure,
-	);
+	const browser = args[0] === "check" || args[0] === "screenshot";
+	const env = browser ? { PATH: playwrightCliPath() } : {};
+	const command = ["run", "--quiet", "--project", template, "nnw-theme", ...args];
+	return run("uv", command, cwd, allowFailure, env);
 }
 
 function node(args: string[], cwd: string, allowFailure = false): Run {
@@ -170,6 +187,34 @@ function prepareEmber(template: string, ember: string): Input {
 		cpSync(join(template, "fixtures", name), join(py, "fixtures", name));
 	}
 	return { name: "ember", py, node: nodeCopy };
+}
+
+/**
+ * The starter plus a fixture that fails the browser checks, to compare failures.
+ * External requests are covered by test/browser.test.ts: under the preview CSP only a
+ * navigation leaves the page, and the Python tool times out on one.
+ */
+function prepareFailing(starter: Input): Input {
+	const base = join(WORK, "failing");
+	const copies = { py: join(base, "py"), node: join(base, "node") };
+	const fixture = [
+		'title = "Failing on purpose"',
+		'feed_link_title = "Parity"',
+		"body = '''",
+		"<p>This fixture trips every browser check the tools share, on purpose.</p>",
+		"<p>An unresolved [[macro_name]] stays literal.</p>",
+		'<div style="width: 4000px">Too wide for any viewport.</div>',
+		'<img src="data:image/png;base64,AAAA" alt="broken">',
+		'<script>throw new Error("boom from the fixture")</script>',
+		"'''",
+		"",
+	].join("\n");
+	for (const [side, destination] of Object.entries(copies)) {
+		rmSync(destination, { recursive: true, force: true });
+		cpSync(side === "py" ? starter.py : starter.node, destination, { recursive: true });
+		writeFileSync(join(destination, "fixtures", "failing.toml"), fixture);
+	}
+	return { name: "failing", ...copies };
 }
 
 /** The starter with one of each validation problem, to compare error messages. */
@@ -241,7 +286,13 @@ function compareOutputs(
 	return { py, port };
 }
 
-function compareTrees(label: string, python: string, port: string, differences: Differences) {
+function compareTrees(
+	label: string,
+	python: string,
+	port: string,
+	differences: Differences,
+	screenshots: string[] = [],
+) {
 	const left = files(python).sort();
 	const right = files(port).sort();
 	for (const path of left.filter((item) => !right.includes(item)))
@@ -252,11 +303,56 @@ function compareTrees(label: string, python: string, port: string, differences: 
 		const a = readFileSync(join(python, path));
 		const b = readFileSync(join(port, path));
 		if (path.endsWith(".png")) {
-			if (!a.equals(b))
-				differences.add(`${label}: ${path} differs (${a.length} vs ${b.length} bytes)`);
+			const difference = pixelDifference(a, b);
+			if (difference) screenshots.push(`${path}: ${difference}`);
 		} else differences.compareText(`${label}: ${path}`, a.toString("utf8"), b.toString("utf8"));
 	}
 	return left.length;
+}
+
+/**
+ * The Python check reuses one page for every case, so a case can inherit state from
+ * the one before it. Re-shoot each mismatched case alone with the Python tool's
+ * screenshot command, which starts from a fresh page, and compare again.
+ */
+function recheckScreenshots(
+	input: Input,
+	mismatches: string[],
+	differences: Differences,
+	template: string,
+	notes: string[],
+) {
+	const copy = join(WORK, input.name, "py-recheck");
+	rmSync(copy, { recursive: true, force: true });
+	cpSync(input.py, copy, { recursive: true });
+	for (const mismatch of mismatches) {
+		const path = mismatch.slice(0, mismatch.indexOf(":"));
+		const slug = path.replace(/^screenshots\//, "").replace(/\.png$/, "");
+		const match = /^(.+)-(mac|iphone|ipad)-(light|dark)$/.exec(slug);
+		if (!match) {
+			differences.add(`${input.name} check: ${mismatch}`);
+			continue;
+		}
+		const [, fixture = "", platform = "", appearance = ""] = match;
+		const args = [
+			"screenshot",
+			"--fixture",
+			fixture,
+			"--platform",
+			platform,
+			"--appearance",
+			appearance,
+		];
+		python(template, args, copy, true);
+		const isolated = readFileSync(join(copy, "build", "preview", path));
+		const difference = pixelDifference(
+			isolated,
+			readFileSync(join(input.node, "build", "preview", path)),
+		);
+		if (difference) differences.add(`${input.name} check: ${mismatch}; alone: ${difference}`);
+		else
+			notes.push(`${input.name}: ${mismatch} in the Python check, identical when shot alone`);
+	}
 }
 
 function zipSummary(path: string): string[] {
@@ -299,11 +395,6 @@ function compareZip(input: Input, differences: Differences): void {
 	}
 }
 
-function reportFailures(report: string): string {
-	// The report's PASS body names the package and counts; FAIL lists failures.
-	return report;
-}
-
 function main(): number {
 	mkdirSync(WORK, { recursive: true });
 	const template =
@@ -311,14 +402,16 @@ function main(): number {
 	const ember = values.ember ?? checkout(EMBER_URL, undefined, join(WORK, "ember-source"));
 	const inputs: Input[] = [];
 	const wanted = (name: string) => !values.only || values.only === name;
-	if (wanted("starter") || wanted("broken")) {
+	if (wanted("starter") || wanted("broken") || wanted("failing")) {
 		const starter = prepareStarter(template);
 		if (wanted("starter")) inputs.push(starter);
 		if (wanted("broken")) inputs.push(prepareBroken(starter));
+		if (wanted("failing") && values.check) inputs.push(prepareFailing(starter));
 	}
 	if (wanted("ember")) inputs.push(prepareEmber(template, ember));
 	const differences = new Differences();
 	const timings: string[] = [];
+	const notes: string[] = [];
 	for (const input of inputs) {
 		compareOutputs(input, ["render"], differences, template);
 		const pages = compareTrees(
@@ -341,18 +434,24 @@ function main(): number {
 			);
 			differences.compareText(
 				`${input.name}: check-report.txt`,
-				reportFailures(readFileSync(join(input.py, "build", "check-report.txt"), "utf8")),
-				reportFailures(readFileSync(join(input.node, "build", "check-report.txt"), "utf8")),
+				readFileSync(join(input.py, "build", "check-report.txt"), "utf8"),
+				readFileSync(join(input.node, "build", "check-report.txt"), "utf8").replace(
+					/^nnw-theme \S+\n/m,
+					"",
+				),
 			);
+			const mismatches: string[] = [];
 			compareTrees(
 				`${input.name} check`,
 				join(input.py, "build", "preview"),
 				join(input.node, "build", "preview"),
 				differences,
+				mismatches,
 			);
+			recheckScreenshots(input, mismatches, differences, template, notes);
 		}
 	}
-	for (const line of timings) console.log(line);
+	for (const line of [...timings, ...notes]) console.log(line);
 	if (!differences.items.length) {
 		console.log(`No differences across ${inputs.map((input) => input.name).join(" and ")}.`);
 		return 0;
