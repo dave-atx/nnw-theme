@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    # Weekly, the packed check also runs on macOS.
+    - cron: "17 9 * * 1"
   workflow_call:
 
 permissions:
@@ -23,8 +26,63 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: webkit-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install WebKit for the browser tests
+        run: node src/cli.ts setup --with-deps
+      - name: Install the shells completion tests source
+        run: sudo apt-get install --yes --no-install-recommends fish zsh
       - name: Lint, type-check, and test
         run: |
           npm run lint
           npm run typecheck
           npm test
+      - name: Test nnwdump (runs in Xcode's lldb Python)
+        run: python3 -m unittest discover -s lldb -v
+
+  # What gets tested is exactly what npm would publish: the packed tarball, run
+  # against the template's starter and against ember.
+  packed:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ github.event_name == 'schedule' && fromJSON('["ubuntu-26.04", "macos-latest"]') || fromJSON('["ubuntu-26.04"]') }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: dave-atx/netnewswire-theme-template
+          path: .packed/template
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: dave-atx/ember-nnw-theme
+          path: .packed/ember
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Pack
+        id: pack
+        run: echo "tarball=$(npm pack --silent | tail -1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ~/Library/Caches/ms-playwright
+          key: webkit-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install WebKit
+        run: node src/cli.ts setup ${{ runner.os == 'Linux' && '--with-deps' || '' }}
+      - name: Check the starter and ember with the packed tarball
+        run: scripts/packed/check.sh "${{ steps.pack.outputs.tarball }}" .packed/template .packed/ember
+      - name: Keep the tarball
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: nnw-theme-${{ runner.os }}-${{ github.sha }}
+          path: ${{ steps.pack.outputs.tarball }}

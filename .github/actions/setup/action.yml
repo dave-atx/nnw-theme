@@ -1,0 +1,53 @@
+name: Set up nnw-theme
+description: Install Node, resolve one nnw-theme version for the job, and install its WebKit.
+
+inputs:
+  nnw-theme-version:
+    description: npm version or tag of nnw-theme to use (for example 1, 1.4.2, or next)
+    default: "1"
+  webkit-deps:
+    description: Install WebKit's Linux runtime dependencies. Use false on macOS.
+    default: "true"
+
+outputs:
+  version:
+    description: The exact nnw-theme version every later step runs
+    value: ${{ steps.resolve.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      with:
+        node-version: 24
+    # Resolve once, so a job that starts during a publish never mixes two versions.
+    - id: resolve
+      name: Resolve the nnw-theme version
+      shell: bash
+      env:
+        SPEC: ${{ inputs.nnw-theme-version }}
+      run: |
+        version=$(npm view "nnw-theme@$SPEC" version --json | node -e '
+          const value = JSON.parse(require("fs").readFileSync(0, "utf8"));
+          process.stdout.write(Array.isArray(value) ? value.at(-1) : value);')
+        test -n "$version"
+        echo "NNW_THEME_VERSION=$version" >> "$GITHUB_ENV"
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+        echo "Using nnw-theme $version" | tee -a "$GITHUB_STEP_SUMMARY"
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      with:
+        path: |
+          ~/.npm
+          ~/.cache/ms-playwright
+          ~/Library/Caches/ms-playwright
+        key: nnw-theme-${{ runner.os }}-${{ runner.arch }}-${{ steps.resolve.outputs.version }}
+    - name: Install WebKit
+      shell: bash
+      env:
+        WEBKIT_DEPS: ${{ inputs.webkit-deps }}
+      run: |
+        if [ "$WEBKIT_DEPS" = "true" ]; then
+          npx --yes "nnw-theme@$NNW_THEME_VERSION" setup --with-deps
+        else
+          npx --yes "nnw-theme@$NNW_THEME_VERSION" setup
+        fi

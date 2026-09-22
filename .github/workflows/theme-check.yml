@@ -1,0 +1,59 @@
+# Reusable: the release gate for a theme repository, on every push and pull request.
+# Called by the template's .github/workflows/check.yml, which must be named
+# "Theme checks" because theme-pages.yml's caller listens for that name.
+name: Theme checks
+
+on:
+  workflow_call:
+    inputs:
+      nnw-theme-version:
+        description: npm version or tag of nnw-theme (for example 1 or next)
+        type: string
+        default: "1"
+      tool-ref:
+        description: Ref of dave-atx/nnw-theme whose setup action to use; match the ref in uses
+        type: string
+        default: v1
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # A reusable workflow's `uses: ./…` resolves in the caller's repository, so the
+      # setup action comes from a checkout of the tool at the same ref.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: dave-atx/nnw-theme
+          ref: ${{ inputs.tool-ref }}
+          path: .nnw-theme-tool
+          persist-credentials: false
+      - uses: ./.nnw-theme-tool/.github/actions/setup
+        with:
+          nnw-theme-version: ${{ inputs.nnw-theme-version }}
+      - name: Initialize the untouched template for its own check
+        if: ${{ hashFiles('.nnw-theme-uninitialized') != '' }}
+        run: >-
+          npx --yes "nnw-theme@$NNW_THEME_VERSION" init
+          --name "Neutral Reader"
+          --creator "Template Maintainer"
+          --homepage "https://github.com/dave-atx/netnewswire-theme-template"
+          --identifier "io.github.dave-atx.neutral-reader"
+          --confirm-identifier "io.github.dave-atx.neutral-reader"
+          --marketplace no
+          --no-install-browser
+      - name: Run the release gate
+        run: npx --yes "nnw-theme@$NNW_THEME_VERSION" check --no-open
+      - name: Upload the preview gallery
+        # Pages deploys this instead of rebuilding; also the failure diagnostic.
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: theme-preview-${{ github.sha }}
+          path: |
+            build/preview/
+            build/check-report.txt
+          if-no-files-found: warn
