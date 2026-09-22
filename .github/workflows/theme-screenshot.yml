@@ -66,6 +66,9 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "Refresh theme preview screenshot"
           git push --set-upstream origin "$BRANCH"
-          gh pr create --base "$BASE" \
+          if ! gh pr create --base "$BASE" \
             --head "$BRANCH" --title "Refresh theme preview screenshot" \
-            --body "Generated on macOS WebKit for deliberate visual review."
+            --body "Generated on macOS WebKit for deliberate visual review."; then
+            echo "::error::Could not open the pull request. The screenshot is pushed to $BRANCH. If the message above says Actions may not create pull requests, turn on Settings -> Actions -> General -> Workflow permissions -> Allow GitHub Actions to create and approve pull requests, then rerun."
+            exit 1
+          fi

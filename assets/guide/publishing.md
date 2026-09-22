@@ -24,6 +24,11 @@ stable GitHub release; and the valid ZIP asset. A useful repository description 
 metadata warns but does not block publication. `npx nnw-theme@1 marketplace enable`
 adds the recommended topic through the author’s authenticated `gh` session.
 
+The screenshot workflow pushes a branch and opens a pull request for review, so the
+repository needs **Settings → Actions → General → Workflow permissions → Allow GitHub
+Actions to create and approve pull requests**. Without it the run pushes the branch and
+then fails with "GitHub Actions is not permitted to create or approve pull requests".
+
 Creating releases, topics, branches, pull requests, or other GitHub state is external
 mutation. Confirm the person’s intent immediately before doing it. Ordinary edits,
 local previews, checks, and packages do not need that additional confirmation.
