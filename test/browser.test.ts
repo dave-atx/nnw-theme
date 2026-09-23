@@ -18,6 +18,7 @@ const PASSING: PageState = {
 	unresolved: false,
 	overflow: false,
 	brokenImages: [],
+	collapsedImages: [],
 	footnotes: [],
 	blocked: [],
 	pageErrors: [],
@@ -42,12 +43,14 @@ describe("failures", () => {
 			...PASSING,
 			textLength: 3,
 			brokenImages: ["a.png", "it's.png"],
+			collapsedImages: ["b.png"],
 			blocked: ["https://x.test/"],
 			pageErrors: ["Error: boom"],
 		};
 		assert.deepEqual(failures(state), [
 			"article content is missing or unreadable",
 			`broken images: ['a.png', "it's.png"]`,
+			"images drawn at zero size: ['b.png']",
 			"external requests: ['https://x.test/']",
 			"page errors: ['Error: boom']",
 		]);
@@ -97,6 +100,31 @@ describe("WebKit checks", {
 			"page errors: ['Error: thrown by the page']",
 		]);
 		assert.ok(existsSync(join(site, "screenshots", "bad-mac-light.png")));
+	});
+
+	test("an image the theme collapses fails; one hidden on purpose does not", async () => {
+		const svg = (fill: string) =>
+			"data:image/svg+xml," +
+			encodeURIComponent(
+				`<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><rect width="96" height="96" fill="${fill}"/></svg>`,
+			);
+		const site = temporaryDirectory();
+		writeFiles(site, {
+			"pages/images-mac-light.html": `<!doctype html><html><head><meta charset="utf-8">
+<style>/* Full-bleed media: inside a float, this width resolves to zero. */
+figure img { display: block; margin: 0 -48px; width: calc(100% + 96px); }</style></head><body><div class="articleBody">
+<p>Readable article text that is comfortably longer than forty characters.</p>
+<figure style="float: left"><img src="${svg("red")}"></figure>
+<img src="${svg("green")}">
+<img src="${svg("blue")}" style="display: none">
+<details><summary>More</summary><img src="${svg("navy")}"></details>
+<img src="${svg("gray")}" width="0" height="0">
+</div></body></html>`,
+		});
+		const results = await checkPages(site, [new RenderTarget("images", "mac", "light")]);
+		assert.deepEqual(results["images-mac-light"], [
+			`images drawn at zero size: ['${svg("red")}']`,
+		]);
 	});
 
 	test("a page without an article fails, and a look-alike origin is blocked", async () => {
