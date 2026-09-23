@@ -136,6 +136,7 @@ export interface PageState {
 	unresolved: boolean;
 	overflow: boolean;
 	brokenImages: string[];
+	collapsedImages: string[];
 	footnotes: string[];
 	blocked: string[];
 	pageErrors: string[];
@@ -148,6 +149,8 @@ export function failures(state: PageState): string[] {
 	if (state.unresolved) found.push("unresolved theme macro");
 	if (state.overflow) found.push("horizontal document overflow");
 	if (state.brokenImages.length) found.push(`broken images: ${pyReprList(state.brokenImages)}`);
+	if (state.collapsedImages.length)
+		found.push(`images drawn at zero size: ${pyReprList(state.collapsedImages)}`);
 	found.push(...(state.footnotes ?? []));
 	if (state.blocked.length) found.push(`external requests: ${pyReprList(state.blocked)}`);
 	if (state.pageErrors.length) found.push(`page errors: ${pyReprList(state.pageErrors)}`);
@@ -167,6 +170,22 @@ function pageState() {
 		overflow: root.scrollWidth > root.clientWidth + 1,
 		brokenImages: [...document.images]
 			.filter((image) => image.complete && image.naturalWidth === 0)
+			.map((image) => image.currentSrc || image.src),
+		// A loaded image the theme lays out at no size, such as a percentage width
+		// inside a shrink-to-fit float, which WebKit resolves to zero. Images that are
+		// not laid out at all (display: none, a closed <details>) are deliberate, and
+		// so is one the article itself sizes to zero, like a tracking pixel.
+		collapsedImages: [...document.images]
+			.filter((image) => {
+				if (!image.complete || image.naturalWidth < 2 || image.naturalHeight < 2) return false;
+				if (!image.getClientRects().length) return false;
+				const zero = (value: string | null) => value !== null && /^\s*0(px)?\s*$/i.test(value);
+				if ([image.getAttribute("width"), image.getAttribute("height")].some(zero))
+					return false;
+				if ([image.style.width, image.style.height].some(zero)) return false;
+				const box = image.getBoundingClientRect();
+				return box.width < 1 || box.height < 1;
+			})
 			.map((image) => image.currentSrc || image.src),
 	};
 }
