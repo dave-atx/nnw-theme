@@ -1,6 +1,6 @@
 {
 	"name": "nnw-theme",
-	"version": "1.0.1",
+	"version": "1.0.2",
 	"description": "Create, preview, check, and publish a NetNewsWire theme.",
 	"license": "Apache-2.0",
 	"author": "Dave Marquard",
