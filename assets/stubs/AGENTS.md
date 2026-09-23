@@ -6,6 +6,13 @@ its `fixtures/`, and `screenshots/`. The tooling is the `nnw-theme` npm package;
 run it as `npx nnw-theme@1 <command>`. Never install it globally and never add
 it to this repository. Read `npx nnw-theme@1 guide` before theme work.
 
+If this repository is `dave-atx/netnewswire-theme-template` itself (check
+`git remote -v`), it is the GitHub template, not a theme: do not initialize,
+fork, or design in it. Help the user create their own repository from it with
+**Use this template** or `gh repo create NAME --template
+dave-atx/netnewswire-theme-template --clone`, confirming before you create it,
+then work in that copy.
+
 If `.nnw-theme-uninitialized` exists, run `npx nnw-theme@1 init` first and let
 the user confirm the permanent theme identifier. Prefer CSS changes; change
 `template.html` only when the requested structure or behavior requires it.
