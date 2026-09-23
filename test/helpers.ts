@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after } from "node:test";
@@ -10,9 +10,14 @@ export const STARTER = join(
 	"Starter.nnwtheme",
 );
 
-/** A temporary directory removed when the test file finishes. */
+/**
+ * A temporary directory removed when the test file finishes.
+ *
+ * Resolved, because on macOS tmpdir() is under /var, a symlink to /private/var, and a
+ * command run there sees the resolved path as its working directory.
+ */
 export function temporaryDirectory(): string {
-	const directory = mkdtempSync(join(tmpdir(), "nnw-theme-test-"));
+	const directory = realpathSync(mkdtempSync(join(tmpdir(), "nnw-theme-test-")));
 	after(() => rmSync(directory, { recursive: true, force: true }));
 	return directory;
 }
