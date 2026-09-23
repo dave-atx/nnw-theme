@@ -81,6 +81,17 @@ describe("init", () => {
 		);
 	});
 
+	test("outside a theme, explains how to create one from the template", () => {
+		const result = run(temporaryDirectory(), ...INIT);
+		assert.equal(result.status, 1);
+		assert.match(result.stderr, /^error: no theme repository here/);
+		assert.ok(
+			result.stderr.includes(
+				"gh repo create my-theme --template dave-atx/netnewswire-theme-template --public --clone",
+			),
+		);
+	});
+
 	test("personalizes the template and removes the starter screenshot", () => {
 		const root = template();
 		const result = run(root, ...INIT);

@@ -84,6 +84,25 @@ function updateReadme(root: string, name: string, creator: string, homepage: str
 	);
 }
 
+const TEMPLATE = "dave-atx/netnewswire-theme-template";
+
+/** The theme root, or directions to create one: init starts from the template. */
+function templateRoot(): string {
+	try {
+		return findRoot();
+	} catch (error) {
+		if (!(error instanceof ThemeError)) throw error;
+		throw new ThemeError(
+			"no theme repository here; init personalizes a copy of the theme template.\n" +
+				`Create one with "Use this template" at https://github.com/${TEMPLATE}, ` +
+				"clone it, and run init inside it. With the GitHub CLI:\n" +
+				`  gh repo create my-theme --template ${TEMPLATE} --public --clone\n` +
+				"  cd my-theme\n" +
+				"  npx nnw-theme@1 init",
+		);
+	}
+}
+
 async function ask(value: string | undefined, flag: string, label: string, fallback: string) {
 	if (value) return value;
 	if (!interactive())
@@ -92,7 +111,7 @@ async function ask(value: string | undefined, flag: string, label: string, fallb
 }
 
 export default async function init({ values }: Args): Promise<void> {
-	const root = findRoot();
+	const root = templateRoot();
 	let theme = findTheme(root);
 	if (!existsSync(join(root, PLACEHOLDER_MARKER))) {
 		throw new ThemeError(
