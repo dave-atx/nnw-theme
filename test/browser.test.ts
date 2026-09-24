@@ -69,6 +69,36 @@ describe("loopback server", () => {
 			assert.equal(page.headers.get("content-type"), "text/html; charset=utf-8");
 			assert.equal((await fetch(`${server.url}/..%2Findex.html`)).status, 404);
 			assert.equal((await fetch(`${server.url}/missing.html`)).status, 404);
+			assert.equal((await fetch(`${server.url}/__live`)).status, 404);
+		} finally {
+			await server.close();
+		}
+	});
+
+	test("live mode reloads the gallery and views but leaves pages as rendered", async () => {
+		const site = temporaryDirectory();
+		writeFiles(site, {
+			"index.html": "<body>home</body>",
+			"views/a.html": "<body>view</body>",
+			"pages/a.html": "<body>page</body>",
+		});
+		const server = await serve(site, { live: true });
+		try {
+			const text = async (path: string) => await (await fetch(`${server.url}${path}`)).text();
+			assert.match(await text("/"), /^<body>home<script>.*EventSource.*<\/script><\/body>$/s);
+			assert.match(await text("/views/a.html"), /EventSource/);
+			assert.equal(await text("/pages/a.html"), "<body>page</body>");
+
+			const response = await fetch(`${server.url}/__live`);
+			assert.equal(response.headers.get("content-type"), "text/event-stream");
+			const reader = (response.body as ReadableStream<Uint8Array>).getReader();
+			const next = async () => new TextDecoder().decode((await reader.read()).value);
+			assert.equal(await next(), 'event: build\ndata: {"build":0}\n\n');
+			server.publish("bad fixture");
+			assert.equal(await next(), 'event: build\ndata: {"build":0,"error":"bad fixture"}\n\n');
+			server.publish();
+			assert.equal(await next(), 'event: build\ndata: {"build":1}\n\n');
+			await reader.cancel();
 		} finally {
 			await server.close();
 		}

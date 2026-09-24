@@ -21,10 +21,12 @@ export default async function preview({ values }: Args): Promise<void> {
 	const theme = findTheme(root);
 	const build = () => renderSite(root, theme, normalTargets(extraFixtures(root)));
 	const site = build();
-	const server = await serve(site);
+	const server = await serve(site, { live: true });
 	console.log(`Preview: ${server.url}`);
 	if (!values["no-open"]) openInBrowser(server.url);
-	console.log("Watching theme and fixtures. Press Ctrl-C to stop.");
+	console.log(
+		"Watching theme and fixtures; open pages reload on changes. Press Ctrl-C to stop.",
+	);
 	let timer: NodeJS.Timeout | undefined;
 	const watcher: FSWatcher = watch(root, { recursive: true }, (_event, name) => {
 		if (!name || !watched(root, `${root}${sep}${name}`)) return;
@@ -32,9 +34,12 @@ export default async function preview({ values }: Args): Promise<void> {
 		timer = setTimeout(() => {
 			try {
 				build();
+				server.publish();
 				console.log("Rebuilt preview.");
 			} catch (error) {
-				console.error(`error: ${(error as Error).message}`);
+				const { message } = error as Error;
+				server.publish(message);
+				console.error(`error: ${message}`);
 			}
 		}, 200);
 	});

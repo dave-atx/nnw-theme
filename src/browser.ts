@@ -4,7 +4,7 @@
 // outputs are screenshots and results.
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
-import { createServer, type Server } from "node:http";
+import { createServer, type Server, type ServerResponse } from "node:http";
 import { createRequire } from "node:module";
 import { extname, join, normalize, sep } from "node:path";
 import type { Browser } from "playwright-core";
@@ -13,6 +13,7 @@ import { pyReprList } from "./pyformat.ts";
 import type { RenderTarget } from "./render.ts";
 
 const FOOTNOTE_CHECK = readFileSync(packagePath("assets", "footnotes.js"), "utf8");
+const LIVE_RELOAD = readFileSync(packagePath("assets", "live-reload.js"), "utf8");
 const NOT_INSTALLED = "WebKit is not installed; run `npx nnw-theme@1 setup`";
 
 const CONTENT_TYPES: Record<string, string> = {
@@ -30,15 +31,43 @@ export interface Served {
 	close(): Promise<void>;
 }
 
+export interface LiveServed extends Served {
+	/** Tell open previews a rebuild finished: reload, or show error instead. */
+	publish(error?: string): void;
+}
+
 /** Serve a directory on 127.0.0.1 at a free port. */
-export async function serve(directory: string, port = 0): Promise<Served> {
+export async function serve(directory: string): Promise<Served>;
+/**
+ * With live, also stream build events at /__live and inject the live-reload script
+ * into served HTML outside pages/, which stay exactly as rendered.
+ */
+export async function serve(directory: string, options: { live: true }): Promise<LiveServed>;
+export async function serve(
+	directory: string,
+	{ live = false }: { live?: boolean } = {},
+): Promise<Served | LiveServed> {
 	const root = normalize(directory);
+	const listeners = new Set<ServerResponse>();
+	let state: { build: number; error?: string } = { build: 0 };
+	const send = (response: ServerResponse) =>
+		response.write(`event: build\ndata: ${JSON.stringify(state)}\n\n`);
 	const server: Server = createServer((request, response) => {
 		let path: string;
 		try {
 			path = decodeURIComponent(new URL(request.url ?? "/", "http://127.0.0.1").pathname);
 		} catch {
 			response.writeHead(400).end();
+			return;
+		}
+		if (live && path === "/__live" && request.method === "GET") {
+			response.writeHead(200, {
+				"Content-Type": "text/event-stream",
+				"Cache-Control": "no-store",
+			});
+			listeners.add(response);
+			response.once("close", () => listeners.delete(response));
+			send(response);
 			return;
 		}
 		if (path.endsWith("/")) path += "index.html";
@@ -57,6 +86,15 @@ export async function serve(directory: string, port = 0): Promise<Served> {
 			response.writeHead(404).end();
 			return;
 		}
+		if (live && extname(file) === ".html" && !file.startsWith(join(root, "pages") + sep)) {
+			const html = content.toString("utf8");
+			const at = html.lastIndexOf("</body>");
+			const script = `<script>${LIVE_RELOAD}</script>`;
+			content = Buffer.from(
+				at === -1 ? html + script : html.slice(0, at) + script + html.slice(at),
+				"utf8",
+			);
+		}
 		response.writeHead(200, {
 			"Content-Type": CONTENT_TYPES[extname(file).toLowerCase()] ?? "application/octet-stream",
 			"Content-Length": content.length,
@@ -66,7 +104,7 @@ export async function serve(directory: string, port = 0): Promise<Served> {
 	});
 	await new Promise<void>((resolve, reject) => {
 		server.once("error", reject);
-		server.listen(port, "127.0.0.1", resolve);
+		server.listen(0, "127.0.0.1", resolve);
 	});
 	const address = server.address();
 	if (!address || typeof address === "string") throw new Error("server has no port");
@@ -77,6 +115,10 @@ export async function serve(directory: string, port = 0): Promise<Served> {
 				server.closeAllConnections();
 				server.close(() => resolve());
 			}),
+		publish(error?: string) {
+			state = error === undefined ? { build: state.build + 1 } : { ...state, error };
+			for (const listener of listeners) send(listener);
+		},
 	};
 }
 

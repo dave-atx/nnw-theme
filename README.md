@@ -18,7 +18,7 @@ Run it with `npx`, from anywhere inside the theme repository. It needs Node 24 o
 ```sh
 npx nnw-theme@1 init       # once: name the theme and choose its permanent identifier
 npx nnw-theme@1 setup      # once per machine: install the WebKit build checks use
-npx nnw-theme@1 preview    # live gallery that rebuilds on save
+npx nnw-theme@1 preview    # live gallery that reloads on save
 npx nnw-theme@1 check      # the release gate: package, render, and test every case
 ```
 
@@ -30,7 +30,7 @@ version, name it: `npx nnw-theme@1.4.2 check`.
 | --- | --- |
 | `init` | Personalize a fresh copy of the template (run once) |
 | `setup` | Install the WebKit browser that `check` and `screenshot` use (`--with-deps` on Linux CI) |
-| `preview` | Serve the gallery on localhost, open it, and rebuild on save |
+| `preview` | Serve the gallery on localhost, open it, and rebuild and reload it on save |
 | `render [fixtures…]` | Write the gallery to `build/preview/` once |
 | `check` | Validate and package, then render and test every case in WebKit |
 | `screenshot` | Check one case and save its image; `--promote` makes it the marketplace card |
