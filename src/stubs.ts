@@ -12,12 +12,12 @@ export interface Stub {
 }
 
 export const STUBS: readonly Stub[] = [
-	{ path: "AGENTS.md", name: "agents", version: 1 },
-	{ path: ".agents/skills/creating-nnw-themes/SKILL.md", name: "skill", version: 1 },
-	{ path: ".github/workflows/check.yml", name: "check", version: 1 },
-	{ path: ".github/workflows/pages.yml", name: "pages", version: 1 },
-	{ path: ".github/workflows/release.yml", name: "release", version: 1 },
-	{ path: ".github/workflows/screenshot.yml", name: "screenshot", version: 1 },
+	{ path: "AGENTS.md", name: "agents", version: 2 },
+	{ path: ".agents/skills/creating-nnw-themes/SKILL.md", name: "skill", version: 2 },
+	{ path: ".github/workflows/check.yml", name: "check", version: 2 },
+	{ path: ".github/workflows/pages.yml", name: "pages", version: 2 },
+	{ path: ".github/workflows/release.yml", name: "release", version: 2 },
+	{ path: ".github/workflows/screenshot.yml", name: "screenshot", version: 2 },
 ];
 
 const MARKER = /nnw-theme-stub:\s*([a-z-]+)\s+v(\d+)/;

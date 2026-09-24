@@ -16,15 +16,15 @@ Not affiliated with or endorsed by Ranchero Software or the NetNewsWire project.
 Run it with `npx`, from anywhere inside the theme repository. It needs Node 24 or newer.
 
 ```sh
-npx nnw-theme@1 init       # once: name the theme and choose its permanent identifier
-npx nnw-theme@1 setup      # once per machine: install the WebKit build checks use
-npx nnw-theme@1 preview    # live gallery that reloads on save
-npx nnw-theme@1 check      # the release gate: package, render, and test every case
+npx nnw-theme@2 init       # once: name the theme and choose its permanent identifier
+npx nnw-theme@2 setup      # once per machine: install the WebKit build checks use
+npx nnw-theme@2 preview    # live gallery that reloads on save
+npx nnw-theme@2 check      # the release gate: package, render, and test every case
 ```
 
-`@1` picks the newest 1.x release, so fixes arrive on their own and a breaking 2.0 never
+`@2` picks the newest 2.x release, so fixes arrive on their own and a breaking 3.0 never
 does. Don't install it globally or add it to a theme repository. To use one exact
-version, name it: `npx nnw-theme@1.4.2 check`.
+version, name it: `npx nnw-theme@2.0.0 check`.
 
 | Command | What it does |
 | --- | --- |
@@ -46,16 +46,16 @@ Every command takes `--help`.
 ## Shell completion
 
 `completion` prints a script that completes commands, options, and fixture names. It
-also defines an `nnw-theme` command that runs `npx --yes nnw-theme@1`, so you can type
+also defines an `nnw-theme` command that runs `npx --yes nnw-theme@2`, so you can type
 `nnw-theme check`. The wrapper is skipped when a real `nnw-theme` is already installed.
 
 ```sh
 # fish
-npx nnw-theme@1 completion fish > ~/.config/fish/conf.d/nnw-theme.fish
+npx nnw-theme@2 completion fish > ~/.config/fish/conf.d/nnw-theme.fish
 # zsh (~/.zshrc, after compinit)
-source <(npx --yes nnw-theme@1 completion zsh)
+source <(npx --yes nnw-theme@2 completion zsh)
 # bash (~/.bashrc)
-source <(npx --yes nnw-theme@1 completion bash)
+source <(npx --yes nnw-theme@2 completion bash)
 ```
 
 Fish loads a file rather than running npx at every shell start. Zsh and bash users can
@@ -64,10 +64,20 @@ Regenerate it when commands change.
 
 ## GitHub workflows
 
-Theme repositories call this repository's reusable workflows, pinned to `@v1`:
+Theme repositories call this repository's reusable workflows, pinned to `@v2`:
 `theme-check.yml` (the release gate on every push), `theme-pages.yml` (publishes the
 checked gallery), `theme-release.yml` (manual release), and `theme-screenshot.yml`
 (refreshes the marketplace image). The template carries the ten-line callers.
+
+## Upgrading from 1.x
+
+2.0 fails `check` when `template.html` writes a macro in double brackets inside an HTML
+comment. NetNewsWire substitutes it there too, so an article containing `-->` ends the
+comment early and the rest shows as text; the 1.x starter template did this. Write the
+names without brackets. Then replace the stub files `check` warns about (`AGENTS.md`,
+the agent skill, and the four workflow callers) with the template's current copies,
+which run `npx nnw-theme@2` and call the workflows at `@v2`. 1.x and `@v1` keep working
+unchanged.
 
 ## Developing
 

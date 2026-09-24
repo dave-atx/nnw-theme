@@ -14,7 +14,7 @@ import type { RenderTarget } from "./render.ts";
 
 const FOOTNOTE_CHECK = readFileSync(packagePath("assets", "footnotes.js"), "utf8");
 const LIVE_RELOAD = readFileSync(packagePath("assets", "live-reload.js"), "utf8");
-const NOT_INSTALLED = "WebKit is not installed; run `npx nnw-theme@1 setup`";
+const NOT_INSTALLED = "WebKit is not installed; run `npx nnw-theme@2 setup`";
 
 const CONTENT_TYPES: Record<string, string> = {
 	".html": "text/html; charset=utf-8",

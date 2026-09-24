@@ -4,7 +4,7 @@ description: Install Node, resolve one nnw-theme version for the job, and instal
 inputs:
   nnw-theme-version:
     description: npm version or tag of nnw-theme to use (for example 1, 1.4.2, or next)
-    default: "1"
+    default: "2"
   webkit-deps:
     description: Install WebKit's Linux runtime dependencies. Use false on macOS.
     default: "true"

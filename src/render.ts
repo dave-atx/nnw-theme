@@ -520,7 +520,7 @@ export function writeGallery(
 	if (results === null) {
 		summary =
 			`<p class=summary>${targets.length} cases, not checked yet. Run ` +
-			"<code>npx nnw-theme@1 check</code> to verify them in WebKit.</p>";
+			"<code>npx nnw-theme@2 check</code> to verify them in WebKit.</p>";
 	} else {
 		const failed = targets.filter((target) => results[target.slug]?.length);
 		summary =

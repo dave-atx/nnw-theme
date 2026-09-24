@@ -49,7 +49,7 @@ const INIT_ARGS = [
 ];
 // Text the port changes on purpose. Applied to the Python side before comparing.
 const INTENDED: [RegExp, string][] = [
-	[/uv run nnw-theme/g, "npx nnw-theme@1"],
+	[/uv run nnw-theme/g, "npx nnw-theme@2"],
 	[/^NetNewsWire .* rendering inputs are (ready|already verified)\.\n/gm, ""],
 ];
 

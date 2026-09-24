@@ -2,8 +2,8 @@
 
 This repository is `nnw-theme`, the npm package that builds, previews, checks, and
 packages NetNewsWire themes, plus the reusable GitHub workflows theme repositories call.
-Theme repositories carry no tooling: authors run `npx nnw-theme@1 <command>` and their
-workflows call `dave-atx/nnw-theme/.github/workflows/theme-*.yml@v1`. A change here
+Theme repositories carry no tooling: authors run `npx nnw-theme@2 <command>` and their
+workflows call `dave-atx/nnw-theme/.github/workflows/theme-*.yml@v2`. A change here
 reaches every theme on its next run, so treat every release as a release to all of them.
 
 ## Development
@@ -43,9 +43,9 @@ the only outputs.
 
 ## Workflows
 
-`.github/workflows/theme-*.yml` are the reusable workflows every theme calls at `@v1`;
+`.github/workflows/theme-*.yml` are the reusable workflows every theme calls at `@v2`;
 their inputs are part of the semver contract. Each takes `nnw-theme-version` (default
-`1`) and `tool-ref` (default `v1`, the ref whose `.github/actions/setup` it checks out,
+`2`) and `tool-ref` (default `v2`, the ref whose `.github/actions/setup` it checks out,
 because a reusable workflow's `./` paths resolve in the caller). To try a change end
 to end, point a scratch theme's callers at a branch and pass `tool-ref: <branch>` and
 `nnw-theme-version: next`. `scripts/packed/check.sh` runs a packed tarball against the

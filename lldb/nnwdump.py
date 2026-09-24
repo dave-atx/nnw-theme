@@ -2,7 +2,7 @@
 
 Stopped at the final `return d` of ArticleRenderer.articleSubstitutions(), this
 reads the substitution dictionary NetNewsWire built for the selected article and
-writes it as a TOML fixture. `npx nnw-theme@1 capture` prints the setup steps.
+writes it as a TOML fixture. `npx nnw-theme@2 capture` prints the setup steps.
 
 Values cross the debugger boundary base64-encoded, so nothing is truncated or
 mis-escaped. HTML values are written as '''literal''' strings, so fixtures stay
@@ -30,7 +30,7 @@ def resolve_output(argument: str) -> Path:
     """Relative paths resolve against the working directory.
 
     This file ships in the nnw-theme package, not the theme repository, and lldb's
-    working directory under Xcode is /, so `npx nnw-theme@1 capture` prints an absolute
+    working directory under Xcode is /, so `npx nnw-theme@2 capture` prints an absolute
     output path to pass instead.
     """
     path = Path(argument).expanduser()
@@ -60,7 +60,7 @@ def fixture_text(pairs: list[tuple[str, str]], name: str) -> str:
     ordered = sorted(pairs, key=lambda pair: (pair[0] in _HTML_KEYS, pair[0]))
     header = (
         "# NetNewsWire article captured with nnwdump.\n"
-        f"# Preview with: npx nnw-theme@1 render {name}\n\n"
+        f"# Preview with: npx nnw-theme@2 render {name}\n\n"
     )
     return header + "\n".join(toml_line(key, value) for key, value in ordered) + "\n"
 

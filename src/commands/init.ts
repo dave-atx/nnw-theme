@@ -98,7 +98,7 @@ function templateRoot(): string {
 				"clone it, and run init inside it. With the GitHub CLI:\n" +
 				`  gh repo create my-theme --template ${TEMPLATE} --public --clone\n` +
 				"  cd my-theme\n" +
-				"  npx nnw-theme@1 init",
+				"  npx nnw-theme@2 init",
 		);
 	}
 }
@@ -115,7 +115,7 @@ export default async function init({ values }: Args): Promise<void> {
 	let theme = findTheme(root);
 	if (!existsSync(join(root, PLACEHOLDER_MARKER))) {
 		throw new ThemeError(
-			"this repository is already initialized; run `npx nnw-theme@1 setup` to install preview tools",
+			"this repository is already initialized; run `npx nnw-theme@2 setup` to install preview tools",
 		);
 	}
 	const flag = (name: string) => values[name] as string | undefined;
@@ -184,7 +184,7 @@ export default async function init({ values }: Args): Promise<void> {
 	rmSync(join(root, PLACEHOLDER_MARKER));
 	console.log(`Initialized ${name}.nnwtheme with identifier ${identifier}.`);
 	console.log(
-		"Create a deliberate marketplace image with `npx nnw-theme@1 screenshot --promote`.",
+		"Create a deliberate marketplace image with `npx nnw-theme@2 screenshot --promote`.",
 	);
 
 	let marketplace = flag("marketplace");
@@ -208,11 +208,11 @@ export default async function init({ values }: Args): Promise<void> {
 		} catch (error) {
 			console.error(
 				`Warning: initialization succeeded, but preview setup did not: ${(error as Error).message}\n` +
-					"Finish preview setup later with `npx nnw-theme@1 setup`.",
+					"Finish preview setup later with `npx nnw-theme@2 setup`.",
 			);
 		}
 	}
 	console.log(
-		`Next: work on your design in ${relative(process.cwd(), theme) || "."}, then run \`npx nnw-theme@1 preview\`.`,
+		`Next: work on your design in ${relative(process.cwd(), theme) || "."}, then run \`npx nnw-theme@2 preview\`.`,
 	);
 }

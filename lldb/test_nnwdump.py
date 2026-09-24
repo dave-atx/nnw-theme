@@ -24,7 +24,7 @@ class NnwdumpTests(unittest.TestCase):
 
     def test_html_is_a_readable_literal_and_body_comes_last(self) -> None:
         text = nnwdump.fixture_text([("body", "<p>Hi</p>"), ("title", "T")], "sample")
-        self.assertIn("npx nnw-theme@1 render sample", text)
+        self.assertIn("npx nnw-theme@2 render sample", text)
         self.assertTrue(text.endswith("body = '''\n<p>Hi</p>'''\n"))
         self.assertLess(text.index("title = 'T'"), text.index("body"))
 

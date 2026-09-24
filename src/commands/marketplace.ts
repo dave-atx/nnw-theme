@@ -7,7 +7,7 @@ export function marketplaceEnable(): boolean {
 	});
 	if (result.error) {
 		console.error(
-			"Warning: GitHub CLI is not installed. Run `npx nnw-theme@1 marketplace enable` " +
+			"Warning: GitHub CLI is not installed. Run `npx nnw-theme@2 marketplace enable` " +
 				"after installing and authenticating gh.",
 		);
 		return false;
@@ -15,7 +15,7 @@ export function marketplaceEnable(): boolean {
 	if (result.status) {
 		console.error(
 			"Warning: could not add the marketplace topic. " +
-				`Run \`npx nnw-theme@1 marketplace enable\` later.\n${(result.stderr || result.stdout).trim()}`,
+				`Run \`npx nnw-theme@2 marketplace enable\` later.\n${(result.stderr || result.stdout).trim()}`,
 		);
 		return false;
 	}

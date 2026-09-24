@@ -148,7 +148,7 @@ export function validateSource(
 		report.errors.push("theme bundle name contains path-unsafe characters");
 	}
 	if (existsSync(join(dirname(theme), PLACEHOLDER_MARKER))) {
-		report.errors.push("run `npx nnw-theme@1 init` before packaging this theme");
+		report.errors.push("run `npx nnw-theme@2 init` before packaging this theme");
 	}
 
 	const names = readdirSync(theme);

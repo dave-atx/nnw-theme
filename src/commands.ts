@@ -186,7 +186,7 @@ export const COMMANDS: readonly CommandSpec[] = [
 		name: "completion",
 		summary: "print shell completion and an npx wrapper for fish, zsh, or bash",
 		description:
-			"Print a script that defines an nnw-theme command running `npx --yes nnw-theme@1` " +
+			"Print a script that defines an nnw-theme command running `npx --yes nnw-theme@2` " +
 			"(skipped when nnw-theme is already installed) and completes its commands, " +
 			"options, and fixture names.",
 		options: [],

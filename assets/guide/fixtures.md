@@ -10,7 +10,7 @@ checked on macOS and iPhone in light and dark. Names used by check scenarios
 (`large-text`, `article-javascript-off`) are reserved. Use `'''literal'''` strings for
 HTML bodies so they need no escaping.
 
-Prefer real articles for content a theme must handle. `npx nnw-theme@1 capture`
+Prefer real articles for content a theme must handle. `npx nnw-theme@2 capture`
 prints the steps for saving the selected article from a NetNewsWire debug build with
 the `nnwdump` lldb command; it needs Xcode and a NetNewsWire clone, so the person
 usually runs it. Rendering swaps every image that would load over the network for a

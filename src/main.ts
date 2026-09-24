@@ -92,7 +92,7 @@ export function mainHelp(): string {
 		]),
 		"",
 		`Run \`${PROGRAM} COMMAND --help\` for a command's options.`,
-		`Run it through npx: \`npx nnw-theme@1 COMMAND\`.`,
+		`Run it through npx: \`npx nnw-theme@2 COMMAND\`.`,
 		"",
 	].join("\n");
 }
