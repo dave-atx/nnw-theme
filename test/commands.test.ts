@@ -117,6 +117,11 @@ describe("init", () => {
 		);
 		assert.ok(readme.includes("Kept documentation."));
 		assert.match(result.stdout, /Initialized Quiet Reader\.nnwtheme with identifier/);
+		assert.ok(
+			result.stdout.includes(
+				"Next: work on your design in Quiet Reader.nnwtheme, then run `npx nnw-theme@1 preview`.",
+			),
+		);
 		assert.equal(run(root, ...INIT).status, 1, "a second init is refused");
 	});
 

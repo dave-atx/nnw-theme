@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { setupWebkit } from "../browser.ts";
 import { interactive, promptConfirm, promptText } from "../interactive.ts";
 import type { Args } from "../main.ts";
@@ -212,5 +212,7 @@ export default async function init({ values }: Args): Promise<void> {
 			);
 		}
 	}
-	console.log("Next: describe the design you want, then run `npx nnw-theme@1 preview`.");
+	console.log(
+		`Next: work on your design in ${relative(process.cwd(), theme) || "."}, then run \`npx nnw-theme@1 preview\`.`,
+	);
 }
