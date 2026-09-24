@@ -91,7 +91,7 @@ const SCENARIOS: readonly [string, string, string][] = [
 		"Stress test",
 		"The kitchen-sink fixture: a very long headline, byline, and feed name; inline " +
 			"formatting; nested lists; an unbroken identifier that exposes horizontal " +
-			"overflow; a quotation, code block, table, figure, and footnote.",
+			"overflow; a quotation, code block, table, figure, footnote, and HTML comments in the body.",
 	],
 	[
 		"large-text",
@@ -520,7 +520,7 @@ export function writeGallery(
 	if (results === null) {
 		summary =
 			`<p class=summary>${targets.length} cases, not checked yet. Run ` +
-			"<code>npx nnw-theme@1 check</code> to verify them in WebKit.</p>";
+			"<code>npx nnw-theme@2 check</code> to verify them in WebKit.</p>";
 	} else {
 		const failed = targets.filter((target) => results[target.slug]?.length);
 		summary =

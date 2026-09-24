@@ -19,7 +19,7 @@ export default function capture(): void {
    nnwdump ${output}
    continue
 
-4. Preview it with \`npx nnw-theme@1 render my-article\`.
+4. Preview it with \`npx nnw-theme@2 render my-article\`.
 
 nnwdump embeds the feed's real icon; pass --no-icon to keep the generated one.
 The debugger's working directory is /, so give nnwdump an absolute path.

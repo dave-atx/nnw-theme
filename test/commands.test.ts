@@ -119,7 +119,7 @@ describe("init", () => {
 		assert.match(result.stdout, /Initialized Quiet Reader\.nnwtheme with identifier/);
 		assert.ok(
 			result.stdout.includes(
-				"Next: work on your design in Quiet Reader.nnwtheme, then run `npx nnw-theme@1 preview`.",
+				"Next: work on your design in Quiet Reader.nnwtheme, then run `npx nnw-theme@2 preview`.",
 			),
 		);
 		assert.equal(run(root, ...INIT).status, 1, "a second init is refused");
@@ -193,7 +193,7 @@ describe("small commands", () => {
 	test("update is removed and says what replaced it", () => {
 		const result = run(theme(), "update");
 		assert.equal(result.status, 1);
-		assert.match(result.stderr, /update was removed.*npx nnw-theme@1/s);
+		assert.match(result.stderr, /update was removed.*npx nnw-theme@2/s);
 	});
 
 	test("capture points at the bundled nnwdump and an absolute fixture path", () => {
@@ -245,7 +245,7 @@ describe("stubs", () => {
 		assert.equal(warnings.length, 2);
 		assert.match(
 			warnings[0] ?? "",
-			/^AGENTS\.md is stub agents v0; v1 is current\. Replace it with https:/,
+			/^AGENTS\.md is stub agents v0; v2 is current\. Replace it with https:/,
 		);
 		assert.match(warnings[1] ?? "", /check\.yml has no nnw-theme-stub marker/);
 	});
@@ -255,7 +255,7 @@ describe("stubs", () => {
 			name: "skill",
 			version: 3,
 		});
-		assert.equal(readMarker("# Title\n<!-- nnw-theme-stub: agents v1 -->"), null);
+		assert.equal(readMarker("# Title\n<!-- nnw-theme-stub: agents v2 -->"), null);
 	});
 });
 

@@ -31,6 +31,7 @@ body = """
 <figure><img alt="Abstract green and cream test pattern" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='675' viewBox='0 0 1200 675'%3E%3Crect width='1200' height='675' fill='%23d8d2c6'/%3E%3Ccircle cx='380' cy='337' r='240' fill='%232f6655'/%3E%3Cpath d='M0 560L1200 180V675H0Z' fill='%23f7f5f0'/%3E%3C/svg%3E"><figcaption>A synthetic image checks wide-media scaling.</figcaption></figure>
 <p>The note marker uses common generated markup.<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup></p>
 <div class="footnotes"><ol><li id="fn:1"><p>Footnote content should remain readable in place and in NetNewsWire’s popover. <a href="#fnref:1" class="reversefootnote">↩</a></p></li></ol></div>
+<!-- SC_OFF --><div class="md"><p>A comment-wrapped paragraph, as Reddit sends every post.</p></div><!-- SC_ON -->
 <h3>Final heading</h3>
 <p>End of the fixture.</p>
 """

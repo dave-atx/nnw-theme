@@ -3,8 +3,8 @@
 Read this before versioning, promoting the marketplace screenshot, changing GitHub
 metadata, or releasing.
 
-Run `npx nnw-theme@1 bump`, commit the new integer `Version`, and run
-`npx nnw-theme@1 check`. The bundle filename and `ThemeIdentifier` cannot change
+Run `npx nnw-theme@2 bump`, commit the new integer `Version`, and run
+`npx nnw-theme@2 check`. The bundle filename and `ThemeIdentifier` cannot change
 after the first release. Release tags may use any valid Git ref beginning with `v`;
 semantic tags such as `v1.0.0` are the suggested default and are independent of the
 plist version.
@@ -21,7 +21,7 @@ Marketplace participation is optional. Automatic discovery expects a public,
 non-archived, non-fork repository; the `netnewswire-theme` or `netnewswire` topic; a
 stable GitHub release; and the valid ZIP asset. A useful repository description and
 `screenshots/theme-preview.png` improve the card. Missing optional marketplace/card
-metadata warns but does not block publication. `npx nnw-theme@1 marketplace enable`
+metadata warns but does not block publication. `npx nnw-theme@2 marketplace enable`
 adds the recommended topic through the author’s authenticated `gh` session.
 
 The screenshot workflow pushes a branch and opens a pull request for review, so the

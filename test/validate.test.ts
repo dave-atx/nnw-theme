@@ -148,6 +148,21 @@ describe("source validation", () => {
 		);
 	});
 
+	test("rejects macros inside HTML comments", () => {
+		const theme = makeTheme(temporaryDirectory());
+		writeFileSync(
+			join(theme, "template.html"),
+			"<!-- [[title]] and [[body]], body again: [[body]] -->\n" +
+				'<!-- title and body --><main class="articleBody">[[body]]</main>',
+		);
+		assert.deepEqual(validateSource(theme).errors, [
+			"template.html has macros inside an HTML comment ([[title]] and 1 more). " +
+				"NetNewsWire substitutes them there too, so an article containing --> " +
+				"ends the comment early and the rest shows as text; " +
+				"write macro names without double brackets",
+		]);
+	});
+
 	test("an uninitialized template cannot be packaged", () => {
 		const parent = temporaryDirectory();
 		const theme = makeTheme(parent);

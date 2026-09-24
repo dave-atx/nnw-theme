@@ -1,5 +1,5 @@
 // Shell completion scripts, generated from the same command spec the parser uses.
-// Each script also defines an nnw-theme function that runs `npx --yes nnw-theme@1`
+// Each script also defines an nnw-theme function that runs `npx --yes nnw-theme@2`
 // unless a real nnw-theme is already on PATH. The scripts never call npx to complete,
 // so completion is instant.
 import {
@@ -10,7 +10,7 @@ import {
 	PROGRAM,
 } from "./commands.ts";
 
-const RUN = "npx --yes nnw-theme@1";
+const RUN = "npx --yes nnw-theme@2";
 const visible = () => COMMANDS.filter((command) => !command.hidden);
 
 function flags(option: OptionSpec): string[] {
@@ -38,7 +38,7 @@ function fishQuote(text: string): string {
 
 export function fish(): string {
 	const lines = [
-		"# nnw-theme completion for fish. Install: npx nnw-theme@1 completion fish > ~/.config/fish/conf.d/nnw-theme.fish",
+		"# nnw-theme completion for fish. Install: npx nnw-theme@2 completion fish > ~/.config/fish/conf.d/nnw-theme.fish",
 		`if not command -q ${PROGRAM}`,
 		`    function ${PROGRAM} --description 'Run nnw-theme through npx'`,
 		`        ${RUN} $argv`,
@@ -122,7 +122,7 @@ export function bash(): string {
 			"      ;;",
 		);
 	}
-	return `# nnw-theme completion for bash. Install: source <(npx --yes nnw-theme@1 completion bash)
+	return `# nnw-theme completion for bash. Install: source <(npx --yes nnw-theme@2 completion bash)
 if ! type -P ${PROGRAM} >/dev/null 2>&1; then
   ${PROGRAM}() { ${RUN} "$@"; }
 fi
@@ -188,7 +188,7 @@ export function zsh(): string {
 			specs.push(`'1:${command.positionals?.name ?? "command"}:(${words.join(" ")})'`);
 		cases.push(`    ${command.name}) _arguments -s ${specs.join(" ")} ;;`);
 	}
-	return `# nnw-theme completion for zsh. Install: source <(npx --yes nnw-theme@1 completion zsh)
+	return `# nnw-theme completion for zsh. Install: source <(npx --yes nnw-theme@2 completion zsh)
 if (( ! $+commands[${PROGRAM}] )); then
   ${PROGRAM}() { ${RUN} "$@"; }
 fi
