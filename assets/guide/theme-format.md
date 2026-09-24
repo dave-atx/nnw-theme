@@ -34,7 +34,8 @@ the size classes are inert on iOS, where the app never sets one. Do not reach fo
 uses it: no desktop WebKit implements that property, so every preview resolves the iOS
 branch as false and platform-conditional CSS is checked the wrong way round. Do not
 write macro names in double brackets inside comments either, because substitution
-rewrites those too. NetNewsWire's stylesheet also sets `font: -apple-system-body` at
+rewrites those too: a body containing `-->`, as every Reddit post does, closes the
+comment early and shows the rest of it as text. `check` fails on them. NetNewsWire's stylesheet also sets `font: -apple-system-body` at
 `:root`; a theme with its own typography should not, because that shorthand resets
 `font-family` and `line-height`.
 

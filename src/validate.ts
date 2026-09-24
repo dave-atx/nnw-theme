@@ -27,6 +27,7 @@ const SAFE_BUNDLE_NAME = /^[^/\\\0]+$/;
 const OPTIONAL_THEME_FILE = /^(?:LICENSE|NOTICE)(?:\.[A-Za-z0-9-]+)?$/;
 const S_IFMT = 0o170000;
 const S_IFLNK = 0o120000;
+const MACRO = /\[\[[A-Za-z0-9_-]+\]\]/g;
 
 export class ValidationReport {
 	errors: string[] = [];
@@ -65,6 +66,15 @@ function resourceReferences(template: string): Reference[] {
 	);
 	parser.end(template);
 	return references;
+}
+
+/** Macros written inside HTML comments, which NetNewsWire substitutes like any other. */
+function commentedMacros(template: string): string[] {
+	const found = new Set<string>();
+	for (const comment of template.matchAll(/<!--[\s\S]*?-->/g)) {
+		for (const macro of comment[0].matchAll(MACRO)) found.add(macro[0]);
+	}
+	return [...found];
 }
 
 function isRemote(value: string): boolean {
@@ -168,6 +178,16 @@ export function validateSource(
 		const template = readFileSync(templatePath, "utf8");
 		if (!template.includes("[[")) {
 			report.warnings.push("template.html contains no NetNewsWire macros");
+		}
+		const commented = commentedMacros(template);
+		if (commented.length) {
+			report.errors.push(
+				`template.html has macros inside an HTML comment (${commented[0]}` +
+					`${commented.length > 1 ? ` and ${commented.length - 1} more` : ""}). ` +
+					"NetNewsWire substitutes them there too, so an article containing --> " +
+					"ends the comment early and the rest shows as text; " +
+					"write macro names without double brackets",
+			);
 		}
 		const references = resourceReferences(template);
 		if (/<style\b[^>]*>[\s\S]*?@import\s/i.test(template)) {
