@@ -19,6 +19,7 @@ const PASSING: PageState = {
 	overflow: false,
 	brokenImages: [],
 	collapsedImages: [],
+	unloadedImages: [],
 	footnotes: [],
 	blocked: [],
 	pageErrors: [],
@@ -44,6 +45,7 @@ describe("failures", () => {
 			textLength: 3,
 			brokenImages: ["a.png", "it's.png"],
 			collapsedImages: ["b.png"],
+			unloadedImages: ["c.png"],
 			blocked: ["https://x.test/"],
 			pageErrors: ["Error: boom"],
 		};
@@ -51,6 +53,7 @@ describe("failures", () => {
 			"article content is missing or unreadable",
 			`broken images: ['a.png', "it's.png"]`,
 			"images drawn at zero size: ['b.png']",
+			"images still loading: ['c.png']",
 			"external requests: ['https://x.test/']",
 			"page errors: ['Error: boom']",
 		]);
@@ -154,6 +157,29 @@ figure img { display: block; margin: 0 -48px; width: calc(100% + 96px); }</style
 		const results = await checkPages(site, [new RenderTarget("images", "mac", "light")]);
 		assert.deepEqual(results["images-mac-light"], [
 			`images drawn at zero size: ['${svg("red")}']`,
+		]);
+	});
+
+	test("lazy images below the fold are loaded and checked", async () => {
+		const svg =
+			"data:image/svg+xml," +
+			encodeURIComponent(
+				'<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><rect width="96" height="96"/></svg>',
+			);
+		const site = temporaryDirectory();
+		writeFiles(site, {
+			"pages/lazy-mac-light.html": `<!doctype html><html><head><meta charset="utf-8">
+<style>figure img { display: block; margin: 0 -48px; width: calc(100% + 96px); }</style></head><body><div class="articleBody">
+<p>Readable article text that is comfortably longer than forty characters.</p>
+<div style="height: 5000px"></div>
+<figure style="float: left"><img loading="lazy" src="${svg}"></figure>
+<img loading="lazy" src="data:image/png;base64,AAAA">
+</div></body></html>`,
+		});
+		const results = await checkPages(site, [new RenderTarget("lazy", "mac", "light")]);
+		assert.deepEqual(results["lazy-mac-light"], [
+			"broken images: ['data:image/png;base64,AAAA']",
+			`images drawn at zero size: ['${svg}']`,
 		]);
 	});
 
