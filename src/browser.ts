@@ -179,6 +179,7 @@ export interface PageState {
 	overflow: boolean;
 	brokenImages: string[];
 	collapsedImages: string[];
+	unloadedImages: string[];
 	footnotes: string[];
 	blocked: string[];
 	pageErrors: string[];
@@ -193,10 +194,26 @@ export function failures(state: PageState): string[] {
 	if (state.brokenImages.length) found.push(`broken images: ${pyReprList(state.brokenImages)}`);
 	if (state.collapsedImages.length)
 		found.push(`images drawn at zero size: ${pyReprList(state.collapsedImages)}`);
+	if (state.unloadedImages.length)
+		found.push(`images still loading: ${pyReprList(state.unloadedImages)}`);
 	found.push(...(state.footnotes ?? []));
 	if (state.blocked.length) found.push(`external requests: ${pyReprList(state.blocked)}`);
 	if (state.pageErrors.length) found.push(`page errors: ${pyReprList(state.pageErrors)}`);
 	return found;
+}
+
+// Runs in the page before its screenshot. A loading="lazy" image outside the viewport
+// never starts loading in a full-page screenshot, so it would draw as blank space and
+// escape the image checks; NetNewsWire loads it as the reader scrolls, so load every
+// image now and wait (up to timeout ms) for each to finish or fail.
+async function loadImages(timeout: number) {
+	const images = [...document.images];
+	for (const image of images) if (image.loading === "lazy") image.loading = "eager";
+	const settled = images.map((image) => image.decode().catch(() => {}));
+	await Promise.race([
+		Promise.all(settled),
+		new Promise((resolve) => setTimeout(resolve, timeout)),
+	]);
 }
 
 // Runs in the page after its screenshot.
@@ -228,6 +245,10 @@ function pageState() {
 				const box = image.getBoundingClientRect();
 				return box.width < 1 || box.height < 1;
 			})
+			.map((image) => image.currentSrc || image.src),
+		// Still loading after loadImages: neither drawn nor covered by the checks above.
+		unloadedImages: [...document.images]
+			.filter((image) => !image.complete)
 			.map((image) => image.currentSrc || image.src),
 	};
 }
@@ -317,6 +338,7 @@ async function checkPage(
 		const page = await context.newPage();
 		page.on("pageerror", (error) => pageErrors.push(String(error)));
 		await page.goto(url, { waitUntil: "networkidle" });
+		await page.evaluate(loadImages, 10_000);
 		await page.screenshot({ path: screenshot, fullPage: true });
 		const state = await page.evaluate(pageState);
 		// Last: it clicks footnotes open, so it must not disturb the screenshot.
