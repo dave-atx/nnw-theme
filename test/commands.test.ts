@@ -4,6 +4,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { fixtureHint } from "../src/commands/check.ts";
 import { absoluteHomepage, defaultIdentifier } from "../src/commands/init.ts";
 import { CheckProgress } from "../src/commands/progress.ts";
 import { archiveBytes } from "../src/package.ts";
@@ -125,6 +126,19 @@ describe("init", () => {
 		assert.equal(run(root, ...INIT).status, 1, "a second init is refused");
 	});
 
+	test("adds every platform fixture when asked", () => {
+		const root = template();
+		const result = run(root, ...INIT, "--platform-fixtures", "yes");
+		assert.equal(result.status, 0, result.stderr);
+		assert.match(result.stdout, /Added fixtures\/ghost\.toml, .*fixtures\/wordpress\.toml\./);
+		for (const name of ["ghost", "medium", "substack", "wordpress"]) {
+			assert.ok(existsSync(join(root, "fixtures", `${name}.toml`)));
+		}
+		const without = template();
+		assert.equal(run(without, ...INIT).status, 0);
+		assert.ok(!existsSync(join(without, "fixtures")));
+	});
+
 	test("without a terminal, missing answers are errors rather than prompts", () => {
 		const root = template();
 		const result = run(root, "init", "--name", "Quiet Reader");
@@ -152,6 +166,76 @@ function theme(version = 1): string {
 	});
 	return root;
 }
+
+describe("fixture", () => {
+	const catalog = (name: string) =>
+		readFileSync(join(TOOL, "assets", "catalog", `${name}.toml`));
+
+	test("add copies catalog files byte for byte and says what is next", () => {
+		const root = theme();
+		const result = run(root, "fixture", "add", "ghost", "substack", "ghost");
+		assert.equal(result.status, 0, result.stderr);
+		assert.deepEqual(readFileSync(join(root, "fixtures", "ghost.toml")), catalog("ghost"));
+		assert.deepEqual(
+			readFileSync(join(root, "fixtures", "substack.toml")),
+			catalog("substack"),
+		);
+		assert.match(result.stdout, /render ghost substack`.*8 more renders/s);
+		assert.match(run(root, "fixture", "add", "ghost").stdout, /already current/);
+	});
+
+	test("add keeps an edited copy unless forced, and still adds the rest", () => {
+		const root = theme();
+		writeFiles(root, { "fixtures/ghost.toml": "title = 'mine'\n" });
+		const result = run(root, "fixture", "add", "ghost", "medium");
+		assert.equal(result.status, 1);
+		assert.match(result.stderr, /kept existing fixtures\/ghost\.toml; pass --force/);
+		assert.equal(
+			readFileSync(join(root, "fixtures", "ghost.toml"), "utf8"),
+			"title = 'mine'\n",
+		);
+		assert.deepEqual(readFileSync(join(root, "fixtures", "medium.toml")), catalog("medium"));
+		assert.equal(run(root, "fixture", "add", "--force", "ghost").status, 0);
+		assert.deepEqual(readFileSync(join(root, "fixtures", "ghost.toml")), catalog("ghost"));
+	});
+
+	test("add needs a name from the catalog and a theme repository", () => {
+		const root = theme();
+		const missing = run(root, "fixture", "add");
+		assert.equal(missing.status, 2);
+		assert.match(missing.stderr, /required: names/);
+		const unknown = run(root, "fixture", "add", "blogger");
+		assert.equal(unknown.status, 2);
+		assert.match(unknown.stderr, /invalid choice: 'blogger' \(choose from 'ghost', 'medium'/);
+		const outside = run(temporaryDirectory(), "fixture", "add", "ghost");
+		assert.match(outside.stderr, /inside the theme repository/);
+	});
+
+	test("list reports added, outdated, and edited copies", () => {
+		const root = theme();
+		run(root, "fixture", "add", "ghost");
+		const older = catalog("medium")
+			.toString()
+			.replace("(catalog version 1)", "(catalog version 0)");
+		writeFiles(root, { "fixtures/medium.toml": older, "fixtures/substack.toml": "x = 1\n" });
+		const lines = run(root, "fixture", "list").stdout.split("\n");
+		assert.match(lines.find((line) => line.startsWith("ghost")) ?? "", /added$/);
+		assert.match(
+			lines.find((line) => line.startsWith("medium")) ?? "",
+			/added \(version 0; version 1 available\)$/,
+		);
+		assert.match(lines.find((line) => line.startsWith("substack")) ?? "", /added \(differs\)$/);
+		assert.match(lines.find((line) => line.startsWith("wordpress")) ?? "", /markup$/);
+		assert.match(run(temporaryDirectory(), "fixture", "list").stdout, /^ghost +Ghost/);
+	});
+
+	test("check hints at the catalog only when the theme has no fixtures", () => {
+		const root = theme();
+		assert.match(fixtureHint(root) ?? "", /fixture list/);
+		writeFiles(root, { "fixtures/own.toml": "" });
+		assert.equal(fixtureHint(root), undefined);
+	});
+});
 
 describe("bump and release-check", () => {
 	test("bump increases Version, and needs --yes without a terminal", () => {

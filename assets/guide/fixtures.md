@@ -10,6 +10,32 @@ checked on macOS and iPhone in light and dark. Names used by check scenarios
 (`large-text`, `article-javascript-off`) are reserved. Use `'''literal'''` strings for
 HTML bodies so they need no escaping.
 
+## Platform fixtures
+
+Much of a theme's hardest content comes from the software that published the article:
+Ghost cards, WordPress captions with inline pixel widths, Substack's image and footnote
+wrappers. `nnw-theme` ships ready-made fixtures modeled on that markup:
+
+```sh
+npx nnw-theme@2 fixture list                     # names, summaries, and which you have
+npx nnw-theme@2 fixture add ghost substack       # copy into fixtures/ghost.toml, ...
+npx nnw-theme@2 fixture add wordpress --force    # replace a copy with the current one
+```
+
+Each is copied into `fixtures/` and is from then on an ordinary fixture of the
+repository, checked on macOS and iPhone in light and dark: four more renders per
+fixture in every `check`, sixteen for all four. Their structure, classes, and attributes
+come from real feeds; their text is synthetic and their links point at `example.org`.
+The copy never changes on its own when `nnw-theme` updates. A header comment records
+its catalog version, and `fixture list` says when a newer one is available; take it
+with `fixture add NAME --force`, which replaces any edits to the file.
+
+Only NetNewsWire's own footnote format becomes a popover without a theme script, so
+the Substack and most WordPress footnotes stay plain links until a theme script turns
+them into `a.footnote` markers.
+
+## Your own articles
+
 Prefer real articles for content a theme must handle. `npx nnw-theme@2 capture`
 prints the steps for saving the selected article from a NetNewsWire debug build with
 the `nnwdump` lldb command; it needs Xcode and a NetNewsWire clone, so the person

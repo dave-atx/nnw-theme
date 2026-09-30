@@ -74,6 +74,14 @@ describe("fish", { skip: !has("fish") && "fish is not installed" }, () => {
 		assert.ok(complete("nnw-theme check --").includes("--no-open"));
 		assert.deepEqual(complete("nnw-theme render "), ["article", "kitchen-sink", "zebra-notes"]);
 		assert.deepEqual(complete("nnw-theme marketplace "), ["enable"]);
+		assert.deepEqual(complete("nnw-theme fixture ").sort(), ["add", "list"]);
+		assert.deepEqual(complete("nnw-theme fixture add ").sort(), [
+			"ghost",
+			"medium",
+			"substack",
+			"wordpress",
+		]);
+		assert.deepEqual(complete("nnw-theme fixture add --"), ["--force"]);
 		assert.ok(complete("nnw-theme guide ").includes("theme-format"));
 	});
 
@@ -112,6 +120,9 @@ describe("bash", { skip: !has("bash") && "bash is not installed" }, () => {
 		]);
 		assert.ok(complete("nnw-theme", "init", "--").includes("--no-install-browser"));
 		assert.deepEqual(complete("nnw-theme", "completion", ""), ["fish", "zsh", "bash"]);
+		assert.deepEqual(complete("nnw-theme", "fixture", ""), ["list", "add", "--help"]);
+		assert.deepEqual(complete("nnw-theme", "fixture", "add", "ghost", "s"), ["substack"]);
+		assert.deepEqual(complete("nnw-theme", "fixture", "add", "--"), ["--force", "--help"]);
 		assert.equal(
 			run("source $SCRIPT; complete -p nnw-theme"),
 			"complete -F _nnw_theme nnw-theme\n",
@@ -148,6 +159,10 @@ describe("zsh", { skip: !has("zsh") && "zsh is not installed" }, () => {
 				options.includes("--platform"),
 		);
 		assert.ok(options.includes("--fixture[fixture name]:fixture:_nnw_theme_fixtures"));
+		const subcommands = run(`${stubs} words=(nnw-theme fixture ''); CURRENT=3; _nnw_theme`);
+		assert.ok(subcommands.includes("add:copy platform fixtures into fixtures/"));
+		const names = run(`${stubs} words=(nnw-theme fixture add ''); CURRENT=4; _nnw_theme`);
+		assert.ok(names.includes("*:names:(ghost medium substack wordpress)"));
 	});
 
 	test("defines the npx wrapper only when nnw-theme is not installed", () => {

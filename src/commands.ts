@@ -25,6 +25,8 @@ export interface CommandSpec {
 		variadic: boolean;
 		choices?: readonly string[];
 		completeFixtures?: boolean;
+		/** At least one value must be given. */
+		required?: boolean;
 	};
 	subcommands?: readonly CommandSpec[];
 	/** Parsed but left out of help and completion. */
@@ -43,6 +45,17 @@ export const GUIDE_TOPICS = [
 export const SHELLS = ["fish", "zsh", "bash"] as const;
 /** Fixtures that ship in the package; also in project.ts, which reads them. */
 export const BUILT_IN_FIXTURE_NAMES = ["article", "kitchen-sink"] as const;
+/**
+ * Platform fixtures a theme can copy into fixtures/ with `fixture add`, each with the
+ * summary `fixture list` prints. They live in assets/catalog/ and never run unless added.
+ */
+export const CATALOG_FIXTURES = {
+	ghost: "Ghost cards, galleries, and lazy images",
+	medium: "Medium figures, unsized images, and footer",
+	substack: "Substack images, widgets, and footnotes",
+	wordpress: "WordPress block and classic editor markup",
+} as const;
+export const CATALOG_FIXTURE_NAMES = Object.keys(CATALOG_FIXTURES) as readonly string[];
 
 const allowRemoteMedia: OptionSpec = {
 	name: "allow-remote-media",
@@ -56,7 +69,8 @@ export const COMMANDS: readonly CommandSpec[] = [
 		summary: "personalize a fresh copy of the template (run once)",
 		description:
 			"Name the theme, choose its permanent identifier, and optionally join the " +
-			"marketplace and install WebKit. Runs once, while .nnw-theme-uninitialized exists.",
+			"marketplace, add the platform fixtures, and install WebKit. Runs once, while " +
+			".nnw-theme-uninitialized exists.",
 		options: [
 			{ name: "name", type: "string" },
 			{ name: "creator", type: "string" },
@@ -65,6 +79,12 @@ export const COMMANDS: readonly CommandSpec[] = [
 			{ name: "confirm-identifier", type: "string" },
 			{ name: "github-user", type: "string" },
 			{ name: "marketplace", type: "string", choices: ["yes", "no"] },
+			{
+				name: "platform-fixtures",
+				type: "string",
+				choices: ["yes", "no"],
+				help: "add every platform fixture (more renders in each check)",
+			},
 			{ name: "install-browser", type: "boolean", negatable: true },
 		],
 	},
@@ -149,6 +169,44 @@ export const COMMANDS: readonly CommandSpec[] = [
 		name: "package",
 		summary: "validate the theme and build its release ZIP (no WebKit)",
 		options: [{ name: "output-dir", type: "string", default: "dist" }, allowRemoteMedia],
+	},
+	{
+		name: "fixture",
+		summary: "add fixtures modeled on WordPress, Ghost, Substack, and Medium",
+		description:
+			"Copy ready-made fixtures with markup modeled on what major publishing platforms " +
+			"send into fixtures/, where preview and check pick them up. Each one adds four " +
+			"renders to every check.",
+		options: [],
+		subcommands: [
+			{
+				name: "list",
+				summary: "list the platform fixtures and which ones this theme has",
+				options: [],
+			},
+			{
+				name: "add",
+				summary: "copy platform fixtures into fixtures/",
+				description:
+					"Copy each named platform fixture to fixtures/NAME.toml. An existing file is " +
+					"kept unless --force is given. Each added fixture is checked on Mac and iPhone " +
+					"in light and dark: four more renders per check.",
+				options: [
+					{
+						name: "force",
+						type: "boolean",
+						help: "replace existing copies with the current version",
+					},
+				],
+				positionals: {
+					name: "names",
+					help: `platform fixtures to add: ${CATALOG_FIXTURE_NAMES.join(", ")}`,
+					variadic: true,
+					choices: CATALOG_FIXTURE_NAMES,
+					required: true,
+				},
+			},
+		],
 	},
 	{
 		name: "capture",

@@ -27,7 +27,7 @@
 /* iOS replaces this with the reader's Dynamic Type size. macOS leaves the macro
    literal, so the declaration is invalid there and is dropped — no platform query
    needed, and none wanted: desktop WebKit lacks -webkit-touch-callout, so such a
-   query previews false. See references/theme-format.md. */
+   query previews false. See `npx nnw-theme@2 guide theme-format`. */
 :root {
   font-size: [[font-size]]px;
   -webkit-text-size-adjust: none;
@@ -207,6 +207,11 @@ iframe {
 
 figure {
   margin-inline: 0;
+}
+
+/* Feeds write fixed widths inline, such as WordPress's classic captions. */
+div[style*="width"] {
+  max-width: 100%;
 }
 
 figcaption {
