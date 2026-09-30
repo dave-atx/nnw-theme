@@ -29,6 +29,8 @@ const HANDLERS: Record<string, () => Promise<{ default: Handler }>> = {
 	capture: () => import("./commands/capture.ts"),
 	bump: () => import("./commands/bump.ts"),
 	"marketplace enable": () => import("./commands/marketplace.ts"),
+	"fixture list": async () => ({ default: (await import("./commands/fixture.ts")).list }),
+	"fixture add": async () => ({ default: (await import("./commands/fixture.ts")).add }),
 	guide: () => import("./commands/guide.ts"),
 	completion: () => import("./commands/completion.ts"),
 	update: () => import("./commands/update.ts"),
@@ -106,8 +108,10 @@ export function commandHelp(command: CommandSpec, path: string[]): string {
 	if (command.subcommands)
 		usage.push(`{${command.subcommands.map((sub) => sub.name).join(",")}}`);
 	if (command.positionals) {
+		const { variadic, required } = command.positionals;
 		const name = command.positionals.name.toUpperCase();
-		usage.push(command.positionals.variadic ? `[${name} ...]` : `[${name}]`);
+		if (required) usage.push(variadic ? `${name} [${name} ...]` : name);
+		else usage.push(variadic ? `[${name} ...]` : `[${name}]`);
 	}
 	const sections = [
 		wrap(usage.join(" "), 0),
@@ -180,6 +184,9 @@ function parseCommand(command: CommandSpec, argv: string[]): Args | "help" {
 	const spec = command.positionals;
 	if (!spec && positionals.length) {
 		throw new UsageError(`unrecognized arguments: ${positionals.join(" ")}`);
+	}
+	if (spec?.required && !positionals.length) {
+		throw new UsageError(`the following arguments are required: ${spec.name}`);
 	}
 	if (spec && !spec.variadic && positionals.length > 1) {
 		throw new UsageError(`unrecognized arguments: ${positionals.slice(1).join(" ")}`);

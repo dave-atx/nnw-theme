@@ -59,68 +59,93 @@ export function fish(): string {
 		`complete -c ${PROGRAM} -n __fish_use_subcommand -l version -d 'Print the version'`,
 	];
 	for (const command of visible()) {
-		const when = `'__fish_seen_subcommand_from ${command.name}'`;
 		lines.push(
 			`complete -c ${PROGRAM} -n __fish_use_subcommand -a ${command.name} -d ${fishQuote(command.summary)}`,
 		);
-		for (const option of command.options) {
-			const description = option.help ? ` -d ${fishQuote(option.help)}` : "";
-			let values = "";
-			if (option.completeFixtures) values = " -x -a '(__nnw_theme_fixtures)'";
-			else if (option.choices) values = ` -x -a ${fishQuote(option.choices.join(" "))}`;
-			else if (option.type === "string")
-				values = option.name.endsWith("dir") ? " -r -F" : " -x";
-			lines.push(`complete -c ${PROGRAM} -n ${when} -l ${option.name}${values}${description}`);
-			if (option.negatable)
-				lines.push(`complete -c ${PROGRAM} -n ${when} -l no-${option.name}`);
+		const seen = `__fish_seen_subcommand_from ${command.name}`;
+		if (!command.subcommands) {
+			fishCommand(lines, command, `'${seen}'`);
+			continue;
 		}
-		const words = positionalWords(command);
-		if (words === null)
-			lines.push(`complete -c ${PROGRAM} -n ${when} -a '(__nnw_theme_fixtures)'`);
-		else if (words) {
-			const subs = command.subcommands ?? [];
-			for (const word of words) {
-				const sub = subs.find((item) => item.name === word);
-				const description = sub ? ` -d ${fishQuote(sub.summary)}` : "";
-				lines.push(`complete -c ${PROGRAM} -n ${when} -a ${word}${description}`);
-			}
+		const names = command.subcommands.map((sub) => sub.name).join(" ");
+		for (const sub of command.subcommands) {
+			lines.push(
+				`complete -c ${PROGRAM} -n '${seen}; and not __fish_seen_subcommand_from ${names}' ` +
+					`-a ${sub.name} -d ${fishQuote(sub.summary)}`,
+			);
+			fishCommand(lines, sub, `'${seen}; and __fish_seen_subcommand_from ${sub.name}'`);
 		}
 	}
 	return `${lines.join("\n")}\n`;
 }
 
+/** A leaf command's options and positional words, completed while `when` holds. */
+function fishCommand(lines: string[], command: CommandSpec, when: string): void {
+	for (const option of command.options) {
+		const description = option.help ? ` -d ${fishQuote(option.help)}` : "";
+		let values = "";
+		if (option.completeFixtures) values = " -x -a '(__nnw_theme_fixtures)'";
+		else if (option.choices) values = ` -x -a ${fishQuote(option.choices.join(" "))}`;
+		else if (option.type === "string") values = option.name.endsWith("dir") ? " -r -F" : " -x";
+		lines.push(`complete -c ${PROGRAM} -n ${when} -l ${option.name}${values}${description}`);
+		if (option.negatable) lines.push(`complete -c ${PROGRAM} -n ${when} -l no-${option.name}`);
+	}
+	const words = positionalWords(command);
+	if (words === null)
+		lines.push(`complete -c ${PROGRAM} -n ${when} -a '(__nnw_theme_fixtures)'`);
+	else if (words)
+		lines.push(`complete -c ${PROGRAM} -n ${when} -a ${fishQuote(words.join(" "))}`);
+}
+
 // bash ---------------------------------------------------------------------------
+
+/** The case body completing a leaf command's options and positional words. */
+function bashCommand(command: CommandSpec, indent: string): string[] {
+	const valueCases: string[] = [];
+	for (const option of command.options) {
+		if (option.type !== "string") continue;
+		let reply = "COMPREPLY=()";
+		if (option.completeFixtures)
+			reply = 'COMPREPLY=($(compgen -W "$(_nnw_theme_fixtures)" -- "$cur"))';
+		else if (option.choices)
+			reply = `COMPREPLY=($(compgen -W ${single(option.choices.join(" "))} -- "$cur"))`;
+		else if (option.name.endsWith("dir")) reply = 'COMPREPLY=($(compgen -d -- "$cur"))';
+		valueCases.push(`${indent}  --${option.name}) ${reply}; return ;;`);
+	}
+	const words = positionalWords(command);
+	let positional = "COMPREPLY=()";
+	if (words === null)
+		positional = 'COMPREPLY=($(compgen -W "$(_nnw_theme_fixtures)" -- "$cur"))';
+	else if (words) positional = `COMPREPLY=($(compgen -W ${single(words.join(" "))} -- "$cur"))`;
+	return [
+		...(valueCases.length ? [`${indent}case "$prev" in`, ...valueCases, `${indent}esac`] : []),
+		`${indent}if [[ "$cur" == -* ]]; then`,
+		`${indent}  COMPREPLY=($(compgen -W ${single(allFlags(command).join(" "))} -- "$cur"))`,
+		`${indent}else`,
+		`${indent}  ${positional}`,
+		`${indent}fi`,
+	];
+}
 
 export function bash(): string {
 	const cases: string[] = [];
 	for (const command of visible()) {
-		const valueCases: string[] = [];
-		for (const option of command.options) {
-			if (option.type !== "string") continue;
-			let reply = "COMPREPLY=()";
-			if (option.completeFixtures)
-				reply = 'COMPREPLY=($(compgen -W "$(_nnw_theme_fixtures)" -- "$cur"))';
-			else if (option.choices)
-				reply = `COMPREPLY=($(compgen -W ${single(option.choices.join(" "))} -- "$cur"))`;
-			else if (option.name.endsWith("dir")) reply = 'COMPREPLY=($(compgen -d -- "$cur"))';
-			valueCases.push(`        --${option.name}) ${reply}; return ;;`);
-		}
-		const words = positionalWords(command);
-		let positional = "COMPREPLY=()";
-		if (words === null)
-			positional = 'COMPREPLY=($(compgen -W "$(_nnw_theme_fixtures)" -- "$cur"))';
-		else if (words)
-			positional = `COMPREPLY=($(compgen -W ${single(words.join(" "))} -- "$cur"))`;
-		cases.push(
-			`    ${command.name})`,
-			...(valueCases.length ? ['      case "$prev" in', ...valueCases, "      esac"] : []),
-			'      if [[ "$cur" == -* ]]; then',
-			`        COMPREPLY=($(compgen -W ${single(allFlags(command).join(" "))} -- "$cur"))`,
-			"      else",
-			`        ${positional}`,
-			"      fi",
-			"      ;;",
-		);
+		cases.push(`    ${command.name})`);
+		if (command.subcommands) {
+			const names = command.subcommands.map((sub) => sub.name).join(" ");
+			cases.push(
+				"      if (( COMP_CWORD == 2 )); then",
+				`        COMPREPLY=($(compgen -W ${single(`${names} --help`)} -- "$cur"))`,
+				"        return",
+				"      fi",
+				`      case "\${COMP_WORDS[2]}" in`,
+			);
+			for (const sub of command.subcommands) {
+				cases.push(`        ${sub.name})`, ...bashCommand(sub, "          "), "          ;;");
+			}
+			cases.push("      esac");
+		} else cases.push(...bashCommand(command, "      "));
+		cases.push("      ;;");
 	}
 	return `# nnw-theme completion for bash. Install: source <(npx --yes nnw-theme@2 completion bash)
 if ! type -P ${PROGRAM} >/dev/null 2>&1; then
@@ -175,18 +200,46 @@ function zshOption(option: OptionSpec): string[] {
 	return specs;
 }
 
+/** An _arguments call completing a leaf command's options and positional words. */
+function zshArguments(command: CommandSpec): string {
+	const specs = [...command.options.flatMap(zshOption), "'(- *)'{-h,--help}'[show help]'"];
+	const words = positionalWords(command);
+	if (words === null) specs.push("'*:fixture:_nnw_theme_fixtures'");
+	else if (words) {
+		const position = command.positionals?.variadic ? "*" : "1";
+		specs.push(`'${position}:${command.positionals?.name ?? "command"}:(${words.join(" ")})'`);
+	}
+	return `_arguments -s ${specs.join(" ")}`;
+}
+
 export function zsh(): string {
 	const described = visible().map(
 		(command) => `    '${command.name}:${zshEscape(command.summary)}'`,
 	);
 	const cases: string[] = [];
 	for (const command of visible()) {
-		const specs = [...command.options.flatMap(zshOption), "'(- *)'{-h,--help}'[show help]'"];
-		const words = positionalWords(command);
-		if (words === null) specs.push("'*:fixture:_nnw_theme_fixtures'");
-		else if (words)
-			specs.push(`'1:${command.positionals?.name ?? "command"}:(${words.join(" ")})'`);
-		cases.push(`    ${command.name}) _arguments -s ${specs.join(" ")} ;;`);
+		if (!command.subcommands) {
+			cases.push(`    ${command.name}) ${zshArguments(command)} ;;`);
+			continue;
+		}
+		const described = command.subcommands.map(
+			(sub) => `'${sub.name}:${zshEscape(sub.summary)}'`,
+		);
+		cases.push(
+			`    ${command.name})`,
+			"      if (( CURRENT == 2 )); then",
+			`        local -a subcommands=(${described.join(" ")})`,
+			`        _describe -t commands 'nnw-theme ${command.name} command' subcommands`,
+			"        return",
+			"      fi",
+			"      local subcommand=$words[2]",
+			"      shift words",
+			"      (( CURRENT-- ))",
+			"      case $subcommand in",
+			...command.subcommands.map((sub) => `        ${sub.name}) ${zshArguments(sub)} ;;`),
+			"      esac",
+			"      ;;",
+		);
 	}
 	return `# nnw-theme completion for zsh. Install: source <(npx --yes nnw-theme@2 completion zsh)
 if (( ! $+commands[${PROGRAM}] )); then
