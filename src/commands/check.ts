@@ -12,6 +12,7 @@ import {
 	fixturePath,
 	footnoteExpectations,
 	readFixture,
+	repositoryFixtures,
 	ThemeError,
 	themeStem,
 } from "../project.ts";
@@ -38,6 +39,15 @@ export function expectations(
 		);
 	}
 	return result;
+}
+
+/** A one-line pointer to the platform fixtures, for a theme with no fixtures of its own. */
+export function fixtureHint(root: string): string | undefined {
+	if (repositoryFixtures(root).length) return undefined;
+	return (
+		"Hint: this theme has no fixtures of its own. `npx nnw-theme@2 fixture list` " +
+		"shows ready-made ones modeled on WordPress, Ghost, Substack, and Medium markup."
+	);
 }
 
 async function offerToOpen(index: string, choice: boolean | undefined): Promise<void> {
@@ -85,6 +95,8 @@ export default async function check({ values }: Args): Promise<void> {
 		);
 		console.log(`PASS: ${targets.length} WebKit renders and ${packageName}`);
 	}
+	const hint = fixtureHint(root);
+	if (hint) console.log(hint);
 	const index = join(site, "index.html");
 	console.log(`Preview: ${index}`);
 	await offerToOpen(index, values.open as boolean | undefined);

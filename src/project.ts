@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseToml } from "smol-toml";
-import { BUILT_IN_FIXTURE_NAMES } from "./commands.ts";
+import { BUILT_IN_FIXTURE_NAMES, CATALOG_FIXTURE_NAMES } from "./commands.ts";
 import { buildPlist, type PlistDict, parsePlist } from "./plist.ts";
 
 export const REQUIRED_THEME_FILES = ["Info.plist", "template.html", "stylesheet.css"] as const;
@@ -147,6 +147,16 @@ export function repositoryFixtures(root: string): string[] {
 		.filter((name) => name.endsWith(".toml") && isFile(join(root, "fixtures", name)))
 		.map((name) => name.slice(0, -".toml".length))
 		.sort();
+}
+
+/** A platform fixture in the package's catalog, which `fixture add` copies from. */
+export function catalogPath(name: string): string {
+	if (!CATALOG_FIXTURE_NAMES.includes(name)) {
+		throw new ThemeError(
+			`unknown platform fixture: ${name} (choose from ${CATALOG_FIXTURE_NAMES.join(", ")})`,
+		);
+	}
+	return packagePath("assets", "catalog", `${name}.toml`);
 }
 
 /** Where a fixture lives: the repository's copy, else the package's built-in one. */
