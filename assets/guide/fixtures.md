@@ -30,9 +30,8 @@ The copy never changes on its own when `nnw-theme` updates. A header comment rec
 its catalog version, and `fixture list` says when a newer one is available; take it
 with `fixture add NAME --force`, which replaces any edits to the file.
 
-Only NetNewsWire's own footnote format becomes a popover without a theme script, so
-the Substack and most WordPress footnotes stay plain links until a theme script turns
-them into `a.footnote` markers.
+NetNewsWire turns Substack footnotes into popovers on its own. Most WordPress
+footnotes stay plain links until a theme script turns them into `a.footnote` markers.
 
 ## Your own articles
 
@@ -44,8 +43,8 @@ same-size placeholder and a network feed icon for a generated one; do not inline
 fetch the originals.
 
 Footnote markers are the links NetNewsWire's `newsfoot.js` handles: `a.footnote`.
-Its `main.js` adds that class to local `sup > a[href*='#fn']` links; a theme script
-may add it to other formats. `check` requires every visible marker to resolve to a
+Its `main.js` adds that class to local `sup > a[href*='#fn']` links and to Substack's
+`a[id^='footnote-anchor-']` links; a theme script may add it to other formats. `check` requires every visible marker to resolve to a
 non-empty note with a unique id, stay legible on its background, match the other
 markers' height, font size, and baseline offset, and open a popover with its note
 without resizing. A fixture may declare exact expectations after its other keys:
