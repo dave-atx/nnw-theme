@@ -247,6 +247,21 @@ describe("render", () => {
 		assert.ok(page.includes("Costs $5 and $&."));
 	});
 
+	test("NetNewsWire's scripts follow an article that contains </body>", () => {
+		const snapshot = makeSnapshot(temporaryDirectory());
+		const body = '<iframe srcdoc="<p>Embed</p></body>"></iframe><p>After the embed.</p>';
+		const page = renderPage(
+			STARTER,
+			{ title: "T", body },
+			normalTargets()[0] as RenderTarget,
+			snapshot,
+		);
+		assert.ok(page.includes(body));
+		const scripts = page.indexOf("function processPage()");
+		assert.ok(scripts > page.indexOf("After the embed."));
+		assert.ok(scripts < page.lastIndexOf("</body>"));
+	});
+
 	test("iOS pages define the feed icon label the app injects", () => {
 		const snapshot = makeSnapshot(temporaryDirectory());
 		const [ios, mac] = (["iphone", "mac"] as const).map((platform) =>
