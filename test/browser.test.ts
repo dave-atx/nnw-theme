@@ -9,8 +9,8 @@ import {
 	serve,
 	webkitInstalled,
 } from "../src/browser.ts";
-import { RenderTarget } from "../src/render.ts";
-import { temporaryDirectory, writeFiles } from "./helpers.ts";
+import { RenderTarget, renderSite } from "../src/render.ts";
+import { STARTER, temporaryDirectory, writeFiles } from "./helpers.ts";
 
 const PASSING: PageState = {
 	article: true,
@@ -181,6 +181,31 @@ figure img { display: block; margin: 0 -48px; width: calc(100% + 96px); }</style
 			"broken images: ['data:image/png;base64,AAAA']",
 			`images drawn at zero size: ['${svg}']`,
 		]);
+	});
+
+	test("a Substack note is the text newsfoot shows, not its backlink's", async () => {
+		// Rendered with NetNewsWire's own main.js and newsfoot.js, which turn these
+		// markers into popovers.
+		const note = (n: number, text: string) =>
+			`<div class="footnote"><a id="footnote-${n}" href="#footnote-anchor-${n}" ` +
+			`class="footnote-number">${n}</a><div class="footnote-content"><p>${text}</p></div></div>`;
+		const body =
+			"<p>Readable article text that is comfortably longer than forty characters." +
+			'<a class="footnote-anchor" id="footnote-anchor-1" href="#footnote-1">1</a></p>' +
+			"<p>A second paragraph with its own note." +
+			'<a class="footnote-anchor" id="footnote-anchor-2" href="#footnote-2">2</a></p>' +
+			note(1, "The first note.") +
+			note(2, "The second <em>note</em>.");
+		const root = temporaryDirectory();
+		writeFiles(root, {
+			"fixtures/substack.toml": `title = "Substack"\nbody = ${JSON.stringify(body)}\n`,
+		});
+		const targets = [new RenderTarget("substack", "mac", "light")];
+		const site = renderSite(root, STARTER, targets);
+		const results = await checkPages(site, targets, undefined, {
+			substack: { notes: { 1: "The first note.", 2: "The second note." } },
+		});
+		assert.deepEqual(results["substack-mac-light"], []);
 	});
 
 	test("a page without an article fails, and a look-alike origin is blocked", async () => {
