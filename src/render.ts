@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { decodeHTML } from "entities";
+import { Parser } from "htmlparser2";
 import { renderingInputs } from "./netnewswire.ts";
 import {
 	type Fixture,
@@ -14,7 +15,6 @@ import {
 import { formatG, pyStr } from "./pyformat.ts";
 
 const MACRO_RE = /\[\[([a-zA-Z0-9_-]+)\]\]/g;
-const SCRIPT_RE = /<script\b[^>]*>[\s\S]*?<\/script>/gi;
 // A whole <img> or <source> tag; quoted attribute values may contain ">".
 const MEDIA_TAG_RE = /<(img|source)\b((?:[^>"']|"[^"]*"|'[^']*')*)>/gi;
 const ATTRIBUTE_RE = /([^\s"'=<>/]+)(?:\s*=\s*("[^"]*"|'[^']*'|[^\s"'=<>`]+))?/g;
@@ -342,6 +342,36 @@ function injectScripts(page: string, inputs: string, platform: Platform): string
 	return `${page.slice(0, end)}${bundle}\n${page.slice(end)}`;
 }
 
+/**
+ * Remove every <script> element as WebKit's tokenizer finds them, including end
+ * tags like "</script >" and a script left open to the end of the document.
+ */
+export function removeScripts(html: string): string {
+	const ranges: [number, number][] = [];
+	let start = -1;
+	const parser = new Parser({
+		onopentag(name) {
+			if (name === "script") start = parser.startIndex;
+		},
+		onclosetag(name, isImplied) {
+			if (name !== "script" || start < 0) return;
+			const end = isImplied
+				? html.length
+				: html.indexOf(">", parser.endIndex) + 1 || html.length;
+			ranges.push([start, end]);
+			start = -1;
+		},
+	});
+	parser.end(html);
+	let result = "";
+	let offset = 0;
+	for (const [from, to] of ranges) {
+		result += html.slice(offset, from);
+		offset = to;
+	}
+	return result + html.slice(offset);
+}
+
 function isFile(path: string): boolean {
 	try {
 		return statSync(path).isFile();
@@ -366,7 +396,7 @@ export function renderPage(
 		throw new ThemeError("bundled NetNewsWire rendering inputs are incomplete");
 	}
 
-	const skeleton = read(pagePath).replace(SCRIPT_RE, "");
+	const skeleton = removeScripts(read(pagePath));
 	const stylesheet = read(join(theme, "stylesheet.css"));
 	// styleSubstitutions() is empty on macOS, so the macro must stay literal there.
 	const styleSubstitutions: Record<string, string> = {};
@@ -381,7 +411,7 @@ export function renderPage(
 
 	const template = read(join(theme, "template.html"));
 	let body = substitute(template, fixtureMapping(fixture, target));
-	if (!target.themeScripts) body = body.replace(SCRIPT_RE, "");
+	if (!target.themeScripts) body = removeScripts(body);
 	let page = substitute(skeleton, {
 		title: fixture.title ?? "Theme preview",
 		style,
