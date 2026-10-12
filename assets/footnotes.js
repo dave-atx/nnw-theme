@@ -1,7 +1,8 @@
 // Footnote checks, evaluated in each rendered page after its screenshot. Returns a
 // list of failure messages. NetNewsWire's newsfoot.js opens a popover for any
 // a.footnote whose hash names an element; main.js adds that class to local
-// sup > a[href*='#fn'] links, and a theme script may add it to other formats.
+// sup > a[href*='#fn'] links and Substack's a[id^='footnote-anchor-'] links, and a
+// theme script may add it to other formats.
 //
 // expect is the fixture's [expect.footnotes] table: notes maps each marker's text to
 // its note text, plain_links lists selectors for links that are not footnotes, and

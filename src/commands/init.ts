@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { setupWebkit } from "../browser.ts";
+import { CATALOG_FIXTURE_NAMES } from "../commands.ts";
 import { interactive, promptConfirm, promptText } from "../interactive.ts";
 import type { Args } from "../main.ts";
 import {
@@ -16,6 +17,7 @@ import {
 } from "../project.ts";
 import { pyRepr } from "../pyformat.ts";
 import { urlsplit } from "../urlparse.ts";
+import { addCatalogFixtures } from "./fixture.ts";
 import { marketplaceEnable } from "./marketplace.ts";
 
 function slug(value: string): string {
@@ -195,6 +197,28 @@ export default async function init({ values }: Args): Promise<void> {
 				: "no";
 	}
 	if (marketplace === "yes") marketplaceEnable();
+
+	let platformFixtures = flag("platform-fixtures");
+	if (platformFixtures === undefined && interactive()) {
+		const renders = CATALOG_FIXTURE_NAMES.length * 4;
+		platformFixtures = (await promptConfirm(
+			`Add platform fixtures (${CATALOG_FIXTURE_NAMES.join(", ")})? They catch layout ` +
+				"bugs from real publishing platforms' markup, but add " +
+				`${renders} renders to every check, so check and CI take longer.`,
+			false,
+		))
+			? "yes"
+			: "no";
+		if (platformFixtures === "no") {
+			console.log("Add any of them later: `npx nnw-theme@2 fixture list`.");
+		}
+	}
+	if (platformFixtures === "yes") {
+		const { added } = addCatalogFixtures(root, CATALOG_FIXTURE_NAMES);
+		if (added.length) {
+			console.log(`Added ${added.map((name) => `fixtures/${name}.toml`).join(", ")}.`);
+		}
+	}
 
 	let install = values["install-browser"] as boolean | undefined;
 	if (install === undefined && prompting && interactive()) {

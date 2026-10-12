@@ -19,7 +19,8 @@ specific reading needs. Prefer changing the CSS variables and rules in
 `stylesheet.css`. Edit `template.html` only when the requested structure or behavior
 needs it. For format constraints and macro behavior, read the `theme-format` topic.
 To preview content the built-in articles lack, such as a real feed's markup or
-footnotes, add a fixture as the `fixtures` topic describes.
+footnotes, add a fixture as the `fixtures` topic describes; `npx nnw-theme@2 fixture
+list` offers ready-made ones modeled on WordPress, Ghost, Substack, and Medium.
 
 Iterate with this loop:
 

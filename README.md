@@ -35,6 +35,7 @@ version, name it: `npx nnw-theme@2.0.0 check`.
 | `check` | Validate and package, then render and test every case in WebKit |
 | `screenshot` | Check one case and save its image; `--promote` makes it the marketplace card |
 | `package` | Validate and build `dist/<Name>.nnwtheme.zip` |
+| `fixture list` / `fixture add <name>…` | Add ready-made fixtures modeled on WordPress, Ghost, Substack, and Medium markup |
 | `capture` | Explain how to capture a real article from NetNewsWire as a fixture |
 | `bump` | Increase the `Info.plist` `Version` before a release |
 | `marketplace enable` | Add the marketplace discovery topic on GitHub |
