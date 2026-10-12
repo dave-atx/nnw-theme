@@ -13,6 +13,7 @@ import {
 	normalTargets,
 	offlineMedia,
 	type RenderTarget,
+	removeScripts,
 	renderPage,
 	renderSite,
 	substitute,
@@ -312,6 +313,21 @@ describe("render", () => {
 		assert.ok(!page.includes("window.themeRan"));
 		assert.ok(!page.includes("window.articleRan"));
 		assert.ok(page.includes("function processPage()"));
+	});
+
+	test("script removal follows the HTML tokenizer", () => {
+		const cases: [string, string][] = [
+			["a<script>x</script >b", "ab"],
+			["a<SCRIPT src=x>x</script\tfoo>b", "ab"],
+			["a<script>left open", "a"],
+			["<script>a</script><script>b</script>z", "z"],
+			["<svg><script>a<b/>c</script></svg>", "<svg></svg>"],
+			// No script element here, so nothing is removed.
+			["<style><script>x</script></style>", "<style><script>x</script></style>"],
+			["<!-- <script>x</script> -->", "<!-- <script>x</script> -->"],
+			["<div title='<script>'>t</div>", "<div title='<script>'>t</div>"],
+		];
+		for (const [html, expected] of cases) assert.equal(removeScripts(html), expected, html);
 	});
 });
 

@@ -1,6 +1,6 @@
 {
 	"name": "nnw-theme",
-	"version": "2.0.2",
+	"version": "2.0.3",
 	"description": "Create, preview, check, and publish a NetNewsWire theme.",
 	"license": "Apache-2.0",
 	"author": "Dave Marquard",
@@ -44,8 +44,8 @@
 		"entities": "8.1.0",
 		"fflate": "0.8.3",
 		"htmlparser2": "12.0.0",
-		"playwright-core": "1.64.0-alpha-2026-09-14",
-		"smol-toml": "1.8.0"
+		"playwright-core": "1.64.0",
+		"smol-toml": "1.9.1"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.14",

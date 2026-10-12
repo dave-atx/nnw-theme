@@ -21,18 +21,12 @@ function repository(): string {
 function shell(command: string, args: string[], script: string, cwd: string, path?: string) {
 	const file = join(temporaryDirectory(), "completion");
 	writeFileSync(file, script);
-	const env = { ...process.env, PATH: path ?? process.env.PATH ?? "" };
-	const result = spawnSync(
-		command,
-		[...args, "-c", `source ${file}\n${command === "fish" ? "" : ""}`],
-		{
-			cwd,
-			env,
-		},
-	);
+	// Each body reads the script's path from $SCRIPT rather than having it spliced in.
+	const env = { ...process.env, PATH: path ?? process.env.PATH ?? "", SCRIPT: file };
+	const result = spawnSync(command, [...args, "-c", 'source "$SCRIPT"'], { cwd, env });
 	assert.equal(result.status, 0, String(result.stderr));
 	return (body: string) => {
-		const run = spawnSync(command, [...args, "-c", body.replaceAll("$SCRIPT", file)], {
+		const run = spawnSync(command, [...args, "-c", body], {
 			cwd,
 			encoding: "utf8",
 			env,
@@ -61,7 +55,7 @@ function installed(): string {
 describe("fish", { skip: !has("fish") && "fish is not installed" }, () => {
 	const cwd = repository();
 	const run = shell("fish", ["--no-config"], fish(), cwd);
-	const complete = (line: string) => lines(run(`source $SCRIPT; complete -C '${line}'`));
+	const complete = (line: string) => lines(run(`source "$SCRIPT"; complete -C '${line}'`));
 
 	test("completes commands, options, choices, and fixtures", () => {
 		assert.ok(complete("nnw-theme ").includes("screenshot"));
@@ -79,11 +73,11 @@ describe("fish", { skip: !has("fish") && "fish is not installed" }, () => {
 
 	test("defines the npx wrapper only when nnw-theme is not installed", () => {
 		assert.equal(
-			run("source $SCRIPT; functions -q nnw-theme; and echo function"),
+			run('source "$SCRIPT"; functions -q nnw-theme; and echo function'),
 			"function\n",
 		);
 		const withReal = shell("fish", ["--no-config"], fish(), cwd, installed());
-		assert.equal(withReal("source $SCRIPT; functions -q nnw-theme; or echo none"), "none\n");
+		assert.equal(withReal('source "$SCRIPT"; functions -q nnw-theme; or echo none'), "none\n");
 	});
 });
 
@@ -92,7 +86,7 @@ describe("bash", { skip: !has("bash") && "bash is not installed" }, () => {
 	const run = shell("bash", ["--norc", "--noprofile"], bash(), cwd);
 	const complete = (...words: string[]) =>
 		run(
-			`source $SCRIPT; COMP_WORDS=(${words.map((word) => `'${word}'`).join(" ")}); ` +
+			`source "$SCRIPT"; COMP_WORDS=(${words.map((word) => `'${word}'`).join(" ")}); ` +
 				`COMP_CWORD=${words.length - 1}; _nnw_theme; printf '%s\\n' "\${COMPREPLY[@]}"`,
 		)
 			.split("\n")
@@ -113,22 +107,22 @@ describe("bash", { skip: !has("bash") && "bash is not installed" }, () => {
 		assert.ok(complete("nnw-theme", "init", "--").includes("--no-install-browser"));
 		assert.deepEqual(complete("nnw-theme", "completion", ""), ["fish", "zsh", "bash"]);
 		assert.equal(
-			run("source $SCRIPT; complete -p nnw-theme"),
+			run('source "$SCRIPT"; complete -p nnw-theme'),
 			"complete -F _nnw_theme nnw-theme\n",
 		);
 	});
 
 	test("defines the npx wrapper only when nnw-theme is not installed", () => {
-		assert.equal(run("source $SCRIPT; type -t nnw-theme"), "function\n");
+		assert.equal(run('source "$SCRIPT"; type -t nnw-theme'), "function\n");
 		const withReal = shell("bash", ["--norc", "--noprofile"], bash(), cwd, installed());
-		assert.equal(withReal("source $SCRIPT; type -t nnw-theme"), "file\n");
+		assert.equal(withReal('source "$SCRIPT"; type -t nnw-theme'), "file\n");
 	});
 });
 
 describe("zsh", { skip: !has("zsh") && "zsh is not installed" }, () => {
 	const cwd = repository();
 	const run = shell("zsh", ["-f"], zsh(), cwd);
-	const load = "autoload -Uz compinit && compinit -u -D; source $SCRIPT;";
+	const load = 'autoload -Uz compinit && compinit -u -D; source "$SCRIPT";';
 
 	test("registers the completion function and lists fixtures", () => {
 		assert.equal(run(`${load} print $_comps[nnw-theme]`), "_nnw_theme\n");
