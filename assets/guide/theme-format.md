@@ -39,8 +39,8 @@ comment early and shows the rest of it as text. `check` fails on them. NetNewsWi
 `:root`; a theme with its own typography should not, because that shorthand resets
 `font-family` and `line-height`.
 
-The renderer pins NetNewsWire `mac-7.1.3` commit
-`f2daca0f24f29c08d9cb16e1bdc56293fd6fe286`. It uses upstream `core.css`, macOS and
+The renderer pins NetNewsWire `mac-7.2b4` commit
+`b7f4d8c7d273e4247c5d033ee47014805072297b`. It uses upstream `core.css`, macOS and
 iOS page skeletons, and `main.js`, `main_mac.js`, `main_ios.js`, and `newsfoot.js`.
 These files ship inside the `nnw-theme` package, verified by SHA-256, so previews work
 offline. iPhone and iPad share the iOS skeleton. WebKit native

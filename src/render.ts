@@ -91,7 +91,8 @@ const SCENARIOS: readonly [string, string, string][] = [
 		"Stress test",
 		"The kitchen-sink fixture: a very long headline, byline, and feed name; inline " +
 			"formatting; nested lists; an unbroken identifier that exposes horizontal " +
-			"overflow; a quotation, code block, table, figure, footnote, and HTML comments in the body.",
+			"overflow; a quotation, code block, table, figure, video embeds, footnote, and HTML comments " +
+			"in the body.",
 	],
 	[
 		"large-text",
@@ -335,7 +336,10 @@ function injectScripts(page: string, inputs: string, platform: Platform): string
 		read(join(inputs, "Shared", "newsfoot.js")),
 	);
 	const bundle = scripts.map((script) => `<script>\n${script}\n</script>`).join("\n");
-	return page.replace("</body>", () => `${bundle}\n</body>`);
+	// The theme and fixture are already substituted into the page, so an earlier
+	// </body> can be article text; the skeleton's own closing tag is the last one.
+	const end = page.lastIndexOf("</body>");
+	return `${page.slice(0, end)}${bundle}\n${page.slice(end)}`;
 }
 
 function isFile(path: string): boolean {
