@@ -91,7 +91,8 @@ const SCENARIOS: readonly [string, string, string][] = [
 		"Stress test",
 		"The kitchen-sink fixture: a very long headline, byline, and feed name; inline " +
 			"formatting; nested lists; an unbroken identifier that exposes horizontal " +
-			"overflow; a quotation, code block, table, figure, footnote, and HTML comments in the body.",
+			"overflow; a quotation, code block, table, figure, video embeds, footnote, and HTML comments " +
+			"in the body.",
 	],
 	[
 		"large-text",
