@@ -25,7 +25,8 @@ describe("footnote expectations", () => {
 			'body = "<p>x</p>"\n[expect.footnotes]\nplain_links = ["#ordinary"]\n' +
 				'keep_with_word = true\n[expect.footnotes.notes]\n"a" = "Second."\n"1" = "First."\n',
 		);
-		assert.deepEqual(expected.notes, { a: "Second.", 1: "First." });
+		// smol-toml tables have a null prototype.
+		assert.deepEqual({ ...expected.notes }, { a: "Second.", 1: "First." });
 		assert.deepEqual(expected.plain_links, ["#ordinary"]);
 		assert.equal(expected.keep_with_word, true);
 	});
