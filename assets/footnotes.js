@@ -31,7 +31,15 @@ async ({notes = null, plain_links = [], keep_with_word = false} = {}) => {
 		if (document.querySelectorAll(`[id="${CSS.escape(id)}"]`).length > 1) {
 			fail(`footnote ${label(marker)}: more than one element has id ${id}`);
 		}
-		const note = text(target);
+		// newsfoot shows a Substack note from the elements after its backlink
+		// <a id="footnote-N">N</a>, and any other note from the target itself.
+		let note = text(target);
+		if (marker.matches("a[id^='footnote-anchor-']")) {
+			let content = "";
+			for (let node = target.nextElementSibling; node && !node.matches("a[id^='footnote-']");
+				node = node.nextElementSibling) content += node.textContent;
+			note = content.replace(/\s+/g, " ").trim();
+		}
 		if (note) noteFor.set(marker, note);
 		else fail(`footnote ${label(marker)}: note is empty`);
 	}
