@@ -3,21 +3,25 @@ import { join } from "node:path";
 import { checkPages } from "../browser.ts";
 import type { Args } from "../main.ts";
 import { findRoot, findTheme, ThemeError } from "../project.ts";
-import { extraFixtures, normalTargets, type RenderTarget, renderSite } from "../render.ts";
+import {
+	type Appearance,
+	extraFixtures,
+	FIXTURE_NAMES,
+	type Platform,
+	RenderTarget,
+	renderSite,
+} from "../render.ts";
 import { expectations } from "./check.ts";
 
+// Any fixture on any platform: a screenshot is a deliberate one-off, not the check matrix.
 function selectTarget(root: string, values: Args["values"]): RenderTarget {
-	const targets = normalTargets(extraFixtures(root));
-	const { fixture, platform, appearance } = values;
-	if (!targets.some((target) => target.fixture === fixture)) {
+	const { fixture, platform, appearance, card } = values;
+	if (![...Object.keys(FIXTURE_NAMES), ...extraFixtures(root)].includes(fixture as string)) {
 		throw new ThemeError(`unknown fixture: ${fixture}`);
 	}
-	const target = targets.find(
-		(item) =>
-			item.fixture === fixture && item.platform === platform && item.appearance === appearance,
-	);
-	if (!target) throw new ThemeError(`${fixture} is checked on Mac and iPhone only`);
-	return target;
+	return new RenderTarget(fixture as string, platform as Platform, appearance as Appearance, {
+		card: !!card,
+	});
 }
 
 export default async function screenshot({ values }: Args): Promise<void> {

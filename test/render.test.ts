@@ -12,7 +12,7 @@ import {
 	LARGE_TEXT_SIZE_CLASS,
 	normalTargets,
 	offlineMedia,
-	type RenderTarget,
+	RenderTarget,
 	removeScripts,
 	renderPage,
 	renderSite,
@@ -33,6 +33,14 @@ describe("macros", () => {
 	test("substitution is single pass and preserves unknown macros", () => {
 		const actual = substitute("[[known]] [[unknown]]", { known: "[[nested]]", nested: "no" });
 		assert.equal(actual, "[[nested]] [[unknown]]");
+	});
+
+	test("a card target is the card viewport at any platform", () => {
+		const target = new RenderTarget("showcase", "ipad", "dark", { card: true });
+		assert.deepEqual([target.width, target.height], [800, 552]);
+		assert.equal(target.slug, "showcase-ipad-dark-card");
+		assert.equal(target.label, "showcase · iPad · dark · card");
+		assert.ok(target.ios);
 	});
 
 	test("matrix has twelve normal and four stress targets", () => {
@@ -146,6 +154,40 @@ describe("offline media", () => {
 		);
 		const inline = '<img src="&#100;ata:image/png;base64,AAA">';
 		assert.equal(offlineMedia(inline), inline);
+	});
+
+	test("media/ images come from fixtures/media as data URIs", () => {
+		const root = temporaryDirectory();
+		const media = join(root, "fixtures", "media");
+		writeFiles(root, { "fixtures/media/photos/a.JPG": "jpeg bytes", "secret.png": "secret" });
+		const body = offlineMedia(
+			'<img src="media/photos/a.JPG" srcset="https://x.test/a.jpg 2x" width="4">',
+			media,
+		);
+		const data = Buffer.from("jpeg bytes").toString("base64");
+		assert.equal(body, `<img width="4" src="data:image/jpeg;base64,${data}">`);
+		// Without a media directory, it is a relative URL like any other.
+		assert.deepEqual(
+			placeholderSize(offlineMedia('<img src="media/photos/a.JPG">')),
+			[1600, 900],
+		);
+
+		// Anything else stays a placeholder, as before: nothing outside fixtures/media.
+		symlinkSync(join(root, "secret.png"), join(media, "link.png"));
+		writeFiles(root, { "fixtures/media/notes.txt": "text" });
+		for (const src of [
+			"media/missing.png",
+			"media/../../secret.png",
+			"media/link.png",
+			"media/notes.txt",
+			"media/photos",
+		]) {
+			assert.deepEqual(
+				placeholderSize(offlineMedia(`<img src="${src}">`, media)),
+				[1600, 900],
+				src,
+			);
+		}
 	});
 });
 

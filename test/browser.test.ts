@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, test } from "node:test";
 import {
@@ -206,6 +206,24 @@ figure img { display: block; margin: 0 -48px; width: calc(100% + 96px); }</style
 			substack: { notes: { 1: "The first note.", 2: "The second note." } },
 		});
 		assert.deepEqual(results["substack-mac-light"], []);
+	});
+
+	test("a card shows a fixture's own image at 2x on iPad", async () => {
+		const root = temporaryDirectory();
+		const png =
+			"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+		writeFiles(root, {
+			"fixtures/media/dot.png": Buffer.from(png, "base64"),
+			"fixtures/showcase.toml":
+				"title = \"Showcase\"\nbody = '''<p>Readable article text that is comfortably " +
+				'longer than forty characters.</p><img src="media/dot.png" width="40" height="40">\'\'\'\n',
+		});
+		const targets = [new RenderTarget("showcase", "ipad", "light", { card: true })];
+		const site = renderSite(root, STARTER, targets);
+		const results = await checkPages(site, targets);
+		assert.deepEqual(results["showcase-ipad-light-card"], []);
+		const image = readFileSync(join(site, "screenshots", "showcase-ipad-light-card.png"));
+		assert.deepEqual([image.readUInt32BE(16), image.readUInt32BE(20)], [1600, 1104]);
 	});
 
 	test("a page without an article fails, and a look-alike origin is blocked", async () => {

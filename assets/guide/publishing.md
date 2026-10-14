@@ -24,6 +24,12 @@ stable GitHub release; and the valid ZIP asset. A useful repository description 
 metadata warns but does not block publication. `npx nnw-theme@2 marketplace enable`
 adds the recommended topic through the author’s authenticated `gh` session.
 
+`npx nnw-theme@2 screenshot --fixture NAME --card --promote` makes the card image from
+any fixture: an 800×552 viewport at 2x, the shape of the card, which crops from the top. A
+fixture written for the card, with images in `fixtures/media/`, shows the theme best;
+`--platform ipad` or `iphone` renders it on another platform. The **Refresh marketplace
+screenshot** workflow takes the same fixture name and card choice.
+
 The screenshot workflow pushes a branch and opens a pull request for review, so the
 repository needs **Settings → Actions → General → Workflow permissions → Allow GitHub
 Actions to create and approve pull requests**. Without it the run pushes the branch and

@@ -33,7 +33,7 @@ version, name it: `npx nnw-theme@2.0.0 check`.
 | `preview` | Serve the gallery on localhost, open it, and rebuild and reload it on save |
 | `render [fixtures…]` | Write the gallery to `build/preview/` once |
 | `check` | Validate and package, then render and test every case in WebKit |
-| `screenshot` | Check one case and save its image; `--promote` makes it the marketplace card |
+| `screenshot` | Check one case (any fixture and platform) and save its image; `--card` crops to the marketplace card, `--promote` makes it the card |
 | `package` | Validate and build `dist/<Name>.nnwtheme.zip` |
 | `fixture list` / `fixture add <name>…` | Add ready-made fixtures modeled on WordPress, Ghost, Substack, and Medium markup |
 | `capture` | Explain how to capture a real article from NetNewsWire as a fixture |
