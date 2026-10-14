@@ -42,6 +42,12 @@ usually runs it. Rendering swaps every image that would load over the network fo
 same-size placeholder and a network feed icon for a generated one; do not inline or
 fetch the originals.
 
+To show a real image, as a marketplace screenshot needs, commit it under
+`fixtures/media/` and reference it by that relative path:
+`<img src="media/sunset.jpg" width="1600" height="900">`. Rendering inlines it, so
+previews stay offline; a missing file shows as a placeholder. Use only images the theme may redistribute, and keep them small:
+each is copied into every page that renders the fixture.
+
 Footnote markers are the links NetNewsWire's `newsfoot.js` handles: `a.footnote`.
 Its `main.js` adds that class to local `sup > a[href*='#fn']` links and to Substack's
 `a[id^='footnote-anchor-']` links; a theme script may add it to other formats. `check` requires every visible marker to resolve to a

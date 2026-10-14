@@ -315,6 +315,7 @@ async function checkPage(
 ): Promise<PageState> {
 	const context = await browser.newContext({
 		viewport: { width: target.width, height: target.height },
+		deviceScaleFactor: target.card ? 2 : 1,
 		colorScheme: target.appearance,
 		serviceWorkers: "block",
 	});
@@ -339,7 +340,7 @@ async function checkPage(
 		page.on("pageerror", (error) => pageErrors.push(String(error)));
 		await page.goto(url, { waitUntil: "networkidle" });
 		await page.evaluate(loadImages, 10_000);
-		await page.screenshot({ path: screenshot, fullPage: true });
+		await page.screenshot({ path: screenshot, fullPage: !target.card });
 		const state = await page.evaluate(pageState);
 		// Last: it clicks footnotes open, so it must not disturb the screenshot.
 		const found = (await page.evaluate(

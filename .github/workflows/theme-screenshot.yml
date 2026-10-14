@@ -14,6 +14,10 @@ on:
         description: Appearance to capture (light or dark)
         type: string
         default: light
+      card:
+        description: Capture the marketplace card's shape (800x552 at 2x) instead of the full page
+        type: boolean
+        default: true
       nnw-theme-version:
         description: npm version or tag of nnw-theme (for example 1 or next)
         type: string
@@ -40,16 +44,15 @@ jobs:
         with:
           nnw-theme-version: ${{ inputs.nnw-theme-version }}
           webkit-deps: "false"
-      - name: Capture and promote the deliberate 16:10 image
+      - name: Capture and promote the marketplace image
         env:
           FIXTURE: ${{ inputs.fixture }}
           APPEARANCE: ${{ inputs.appearance }}
-        run: >-
-          npx --yes "nnw-theme@$NNW_THEME_VERSION" screenshot
-          --fixture "$FIXTURE"
-          --platform mac
-          --appearance "$APPEARANCE"
-          --promote
+          CARD: ${{ inputs.card }}
+        run: |
+          args=(--fixture "$FIXTURE" --platform mac --appearance "$APPEARANCE" --promote)
+          if [ "$CARD" = true ]; then args+=(--card); fi
+          npx --yes "nnw-theme@$NNW_THEME_VERSION" screenshot "${args[@]}"
       - name: Open a review pull request
         env:
           GH_TOKEN: ${{ github.token }}

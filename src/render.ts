@@ -1,6 +1,13 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import {
+	mkdirSync,
+	readFileSync,
+	realpathSync,
+	rmSync,
+	statSync,
+	writeFileSync,
+} from "node:fs";
+import { extname, isAbsolute, join, relative } from "node:path";
 import { decodeHTML } from "entities";
 import { Parser } from "htmlparser2";
 import { renderingInputs } from "./netnewswire.ts";
@@ -71,6 +78,18 @@ const VIEWPORTS: Record<Platform, [number, number]> = {
 	iphone: [393, 852],
 	ipad: [834, 1112],
 };
+// The marketplace card shows its image at 347x240, cropped from the top.
+const CARD_VIEWPORT: [number, number] = [800, 552];
+// Fixture images a fixture may reference as media/NAME, from fixtures/media/NAME.
+const MEDIA_TYPES: Record<string, string> = {
+	".avif": "image/avif",
+	".gif": "image/gif",
+	".jpeg": "image/jpeg",
+	".jpg": "image/jpeg",
+	".png": "image/png",
+	".svg": "image/svg+xml",
+	".webp": "image/webp",
+};
 // The template's own fixtures get the full matrix and the stress cases. Any other
 // fixture a theme adds is an extra: checked on Mac and iPhone in both appearances.
 export const FIXTURE_NAMES: Record<string, string> = {
@@ -125,19 +144,22 @@ export class RenderTarget {
 	readonly height: number;
 	readonly largeText: boolean;
 	readonly themeScripts: boolean;
+	/** A 2x capture of the card viewport alone, for the marketplace card. */
+	readonly card: boolean;
 
 	constructor(
 		fixture: string,
 		platform: Platform,
 		appearance: Appearance,
-		{ largeText = false, themeScripts = true } = {},
+		{ largeText = false, themeScripts = true, card = false } = {},
 	) {
 		this.fixture = fixture;
 		this.platform = platform;
 		this.appearance = appearance;
-		[this.width, this.height] = VIEWPORTS[platform];
+		[this.width, this.height] = card ? CARD_VIEWPORT : VIEWPORTS[platform];
 		this.largeText = largeText;
 		this.themeScripts = themeScripts;
+		this.card = card;
 	}
 
 	get ios(): boolean {
@@ -152,6 +174,7 @@ export class RenderTarget {
 		];
 		if (this.largeText) parts.push("large text");
 		if (!this.themeScripts) parts.push("Article JavaScript off");
+		if (this.card) parts.push("card");
 		return parts.join(" · ");
 	}
 
@@ -165,6 +188,7 @@ export class RenderTarget {
 		const parts = [this.fixture, this.platform, this.appearance];
 		if (this.largeText) parts.push("large-text");
 		if (!this.themeScripts) parts.push("no-article-js");
+		if (this.card) parts.push("card");
 		return parts.join("-");
 	}
 }
@@ -272,13 +296,31 @@ function placeholder(width: string | undefined, height: string | undefined): str
 }
 
 /**
+ * A fixture's own image, media/NAME, as a data URI read from fixtures/media/NAME.
+ * Undefined, so a placeholder as before, unless it is an image inside that directory.
+ */
+function mediaDataURI(media: string, src: string): string | undefined {
+	const type = MEDIA_TYPES[extname(src).toLowerCase()];
+	if (!src.startsWith("media/") || !type) return undefined;
+	try {
+		const path = realpathSync(join(media, src.slice("media/".length)));
+		const inside = relative(realpathSync(media), path);
+		if (inside.startsWith("..") || isAbsolute(inside)) return undefined;
+		return `data:${type};base64,${readFileSync(path).toString("base64")}`;
+	} catch {
+		return undefined;
+	}
+}
+
+/**
  * Swap a fixture's network images for same-size placeholders.
  *
  * Previews never touch the network, so a captured article's images would otherwise
  * render broken. Each <img> keeps its attributes and width/height (16:9 when it has
  * none), so layout matches; a <source> that would fetch is dropped for its <img>.
+ * With a media directory, an <img src="media/NAME"> shows that file instead.
  */
-export function offlineMedia(body: string): string {
+export function offlineMedia(body: string, media?: string): string {
 	return body.replace(MEDIA_TAG_RE, (whole, tagName: string, rest: string) => {
 		const tag = tagName.toLowerCase();
 		const attributes = [...rest.matchAll(ATTRIBUTE_RE)].map((match): [string, string] => [
@@ -291,24 +333,30 @@ export function offlineMedia(body: string): string {
 				decodeHTML(value.replace(/^["']+|["']+$/g, "")),
 			]),
 		);
+		const src = values.get("src") ?? "";
 		const srcset = (values.get("srcset") ?? "").split(",").some(fetches);
-		if (!(srcset || fetches(values.get("src") ?? ""))) return whole;
+		if (!(srcset || fetches(src))) return whole;
 		if (tag === "source") return "";
 		const kept = attributes
 			.filter(([name]) => !["src", "srcset", "sizes"].includes(name.toLowerCase()))
 			.map(([name, value]) => (value ? ` ${name}=${value}` : ` ${name}`))
 			.join("");
-		return `<${tagName}${kept} src="${placeholder(values.get("width"), values.get("height"))}">`;
+		const local = media === undefined ? undefined : mediaDataURI(media, src);
+		return `<${tagName}${kept} src="${local ?? placeholder(values.get("width"), values.get("height"))}">`;
 	});
 }
 
-function fixtureMapping(fixture: Fixture, target: RenderTarget): Record<string, string> {
+function fixtureMapping(
+	fixture: Fixture,
+	target: RenderTarget,
+	media?: string,
+): Record<string, string> {
 	const mapping: Record<string, string> = {};
 	for (const key of TEMPLATE_KEYS) mapping[key] = pyStr(fixture[key] ?? "");
 	if (!mapping.dateline_style) {
 		mapping.dateline_style = mapping.title ? "articleDateline" : "articleDatelineTitle";
 	}
-	mapping.body = offlineMedia(mapping.body ?? "");
+	mapping.body = offlineMedia(mapping.body ?? "", media);
 	if (!mapping.avatar_src || fetches(mapping.avatar_src)) {
 		mapping.avatar_src = avatarDataURI(mapping.feed_link_title ?? "");
 	}
@@ -385,6 +433,7 @@ export function renderPage(
 	fixture: Fixture,
 	target: RenderTarget,
 	snapshot: string = renderingInputs().path,
+	media?: string,
 ): string {
 	const pagePath = join(snapshot, target.ios ? "iOS" : "Mac", "page.html");
 	const required = [
@@ -410,7 +459,7 @@ export function renderPage(
 	);
 
 	const template = read(join(theme, "template.html"));
-	let body = substitute(template, fixtureMapping(fixture, target));
+	let body = substitute(template, fixtureMapping(fixture, target, media));
 	if (!target.themeScripts) body = removeScripts(body);
 	let page = substitute(skeleton, {
 		title: fixture.title ?? "Theme preview",
@@ -449,7 +498,7 @@ export function renderSite(
 		const fixture = readFixture(fixturePath(root, target.fixture));
 		writeFileSync(
 			join(pages, `${target.slug}.html`),
-			renderPage(theme, fixture, target, snapshot),
+			renderPage(theme, fixture, target, snapshot, join(root, "fixtures", "media")),
 			"utf8",
 		);
 		const label = escapeHTML(target.label);
