@@ -4,6 +4,12 @@ Stopped at the final `return d` of ArticleRenderer.articleSubstitutions(), this
 reads the substitution dictionary NetNewsWire built for the selected article and
 writes it as a TOML fixture. `npx nnw-theme@2 capture` prints the setup steps.
 
+NetNewsWire with enclosure support renders an article's enclosures into that
+dictionary: as `enclosures`, or appended to a wrapped `body` when the template has no
+[[enclosures]] macro. nnwdump keeps neither. It records the article's attachments
+and image instead, as [[attachments]] tables and image_url/thumbnail_url, so nnw-theme
+renders them for whichever template previews the fixture.
+
 Values cross the debugger boundary base64-encoded, so nothing is truncated or
 mis-escaped. HTML values are written as '''literal''' strings, so fixtures stay
 readable and diff cleanly.
@@ -16,6 +22,7 @@ helpers can be tested without a debugger.
 from __future__ import annotations
 
 import base64
+import json
 import optparse
 import shlex
 from pathlib import Path
@@ -24,6 +31,20 @@ USAGE = "nnwdump [--var NAME] [--article NAME] [--no-icon] [OUTPUT.toml]"
 DEFAULT_OUTPUT = "fixtures/nnw-capture.toml"
 # Sorted last so the short metadata stays at the top of the file.
 _HTML_KEYS = {"body"}
+_ENCLOSURES_KEY = "enclosures"
+# ArticleRenderer's body for a template without [[enclosures]]: <div>BODY</div>ENCLOSURES.
+_WRAPPED_BODY_TAIL = '</div><div class="nnw-enclosures">'
+# Attachment's Codable keys, in fixture order, with their fixture names.
+_ATTACHMENT_KEYS = (
+    ("url", "url"),
+    ("mimeType", "mime_type"),
+    ("title", "title"),
+    ("sizeInBytes", "size_in_bytes"),
+    ("durationInSeconds", "duration_in_seconds"),
+    ("width", "width"),
+    ("height", "height"),
+    ("medium", "medium"),
+)
 
 
 def resolve_output(argument: str) -> Path:
@@ -56,13 +77,49 @@ def toml_line(key: str, value: str) -> str:
     return f'{key} = "{_toml_basic(value)}"'
 
 
-def fixture_text(pairs: list[tuple[str, str]], name: str) -> str:
+def without_enclosures(pairs: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    """The substitutions as they were before NetNewsWire rendered the enclosures."""
+    values = dict(pairs)
+    if _ENCLOSURES_KEY not in values:
+        body = values.get("body", "")
+        at = body.rfind(_WRAPPED_BODY_TAIL)
+        if body.startswith("<div>") and at != -1:
+            values["body"] = body[len("<div>") : at]
+    values.pop(_ENCLOSURES_KEY, None)
+    return list(values.items())
+
+
+def attachments_from_json(text: str) -> list[dict]:
+    """Attachment JSON, as [Attachment].json() writes it, as fixture tables."""
+    tables = []
+    for attachment in json.loads(text or "[]") or []:
+        table = {
+            name: attachment[key]
+            for key, name in _ATTACHMENT_KEYS
+            if attachment.get(key) is not None
+        }
+        if table.get("url"):
+            tables.append(table)
+    return tables
+
+
+def _toml_value_line(key: str, value) -> str:
+    if isinstance(value, bool) or not isinstance(value, int):
+        return toml_line(key, str(value))
+    return f"{key} = {value}"
+
+
+def fixture_text(pairs: list[tuple[str, str]], name: str, attachments: list[dict] = ()) -> str:
     ordered = sorted(pairs, key=lambda pair: (pair[0] in _HTML_KEYS, pair[0]))
     header = (
         "# NetNewsWire article captured with nnwdump.\n"
         f"# Preview with: npx nnw-theme@2 render {name}\n\n"
     )
-    return header + "\n".join(toml_line(key, value) for key, value in ordered) + "\n"
+    text = header + "\n".join(toml_line(key, value) for key, value in ordered) + "\n"
+    for table in attachments:
+        lines = [_toml_value_line(key, value) for key, value in table.items()]
+        text += "\n[[attachments]]\n" + "\n".join(lines) + "\n"
+    return text
 
 
 def _evaluate(interpreter, expression: str):
@@ -127,19 +184,32 @@ def nnwdump(debugger, command, result, internal_dict):
         result.SetError(f"`{options.var}` is empty; is this the substitution dictionary?")
         return
 
+    # Older NetNewsWire has no attachments to read; capture the article without them.
+    pairs = without_enclosures(pairs)
+    attachments = []
+    raw, _ = _evaluate(interpreter, f'({options.article}.attachments ?? []).json() ?? "[]"')
+    if raw:
+        attachments = attachments_from_json(raw)
+    for key, link in (("image_url", "imageLink"), ("thumbnail_url", "thumbnailLink")):
+        value, _ = _evaluate(interpreter, f'{options.article}.{link} ?? ""')
+        if value:
+            pairs.append((key, value))
+
     note = ""
+    if attachments:
+        note = f" and {len(attachments)} attachment{'s' if len(attachments) > 1 else ''}"
     if not options.no_icon:
         icon = _icon_data_url(interpreter, options.article)
         if icon:
             pairs = [(key, value) for key, value in pairs if key != "avatar_src"]
             pairs.append(("avatar_src", icon))
-            note = " with the feed's icon"
+            note += " with the feed's icon"
         else:
-            note = "; the feed has no icon, so previews generate one"
+            note += "; the feed has no icon, so previews generate one"
 
     try:
         output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(fixture_text(pairs, output.stem), encoding="utf-8")
+        output.write_text(fixture_text(pairs, output.stem, attachments), encoding="utf-8")
     except OSError as error:
         result.SetError(f"could not write {output}: {error}")
         return

@@ -24,7 +24,7 @@ npx nnw-theme@2 fixture add wordpress --force    # replace a copy with the curre
 
 Each is copied into `fixtures/` and is from then on an ordinary fixture of the
 repository, checked on macOS and iPhone in light and dark: four more renders per
-fixture in every `check`, sixteen for all four. Their structure, classes, and attributes
+fixture in every `check`, twenty-four for all six. Their structure, classes, and attributes
 come from real feeds; their text is synthetic and their links point at `example.org`.
 The copy never changes on its own when `nnw-theme` updates. A header comment records
 its catalog version, and `fixture list` says when a newer one is available; take it
@@ -33,12 +33,41 @@ with `fixture add NAME --force`, which replaces any edits to the file.
 NetNewsWire turns Substack footnotes into popovers on its own. Most WordPress
 footnotes stay plain links until a theme script turns them into `a.footnote` markers.
 
+## Enclosures
+
+An article's enclosures are data, not markup: NetNewsWire renders them into the
+`enclosures` macro, or after the body, from the article's attachments. A fixture lists
+them after its other keys, in feed order, and may give the article's image:
+
+```toml
+image_url = "https://example.org/episode-art.jpg"  # else thumbnail_url
+
+[[attachments]]
+url = "https://example.org/episode-311.mp3"        # required
+mime_type = "audio/mpeg"
+title = "311: The Long One"
+size_in_bytes = 54919661
+duration_in_seconds = 6849
+width = 1920                                        # images and video
+height = 1080
+medium = "audio"            # image, audio, video, document, or executable
+```
+
+`nnw-theme` renders them as the pinned NetNewsWire does; the `theme-format` guide
+describes the markup. `fixture add podcast media-rss` adds fixtures that exercise
+every kind. Previews stay offline: images and posters become same-size placeholders,
+players lose their network source, a video with nothing to show gets a placeholder
+poster at its size, and the YouTube player becomes a placeholder frame. A `media/NAME`
+URL plays or shows the file from `fixtures/media/`, including audio and video for a
+screenshot; keep such files tiny, since every page that renders the fixture embeds them.
+
 ## Your own articles
 
 Prefer real articles for content a theme must handle. `npx nnw-theme@2 capture`
 prints the steps for saving the selected article from a NetNewsWire debug build with
 the `nnwdump` lldb command; it needs Xcode and a NetNewsWire clone, so the person
-usually runs it. Rendering swaps every image that would load over the network for a
+usually runs it. It records the article's attachments and image as the keys above,
+not NetNewsWire's rendered enclosures, so any template previews them. Rendering swaps every image that would load over the network for a
 same-size placeholder and a network feed icon for a generated one; do not inline or
 fetch the originals.
 

@@ -71,7 +71,9 @@ describe("fish", { skip: !has("fish") && "fish is not installed" }, () => {
 		assert.deepEqual(complete("nnw-theme fixture ").sort(), ["add", "list"]);
 		assert.deepEqual(complete("nnw-theme fixture add ").sort(), [
 			"ghost",
+			"media-rss",
 			"medium",
+			"podcast",
 			"substack",
 			"wordpress",
 		]);
@@ -156,7 +158,7 @@ describe("zsh", { skip: !has("zsh") && "zsh is not installed" }, () => {
 		const subcommands = run(`${stubs} words=(nnw-theme fixture ''); CURRENT=3; _nnw_theme`);
 		assert.ok(subcommands.includes("add:copy platform fixtures into fixtures/"));
 		const names = run(`${stubs} words=(nnw-theme fixture add ''); CURRENT=4; _nnw_theme`);
-		assert.ok(names.includes("*:names:(ghost medium substack wordpress)"));
+		assert.ok(names.includes("*:names:(ghost medium media-rss podcast substack wordpress)"));
 	});
 
 	test("defines the npx wrapper only when nnw-theme is not installed", () => {

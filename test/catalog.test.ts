@@ -44,7 +44,9 @@ describe("catalog", () => {
 			const hosts = [
 				...text.replace(/xmlns="[^"]*"/g, "").matchAll(/https?:\/\/([^/"'\s?#&<)]+)/g),
 			].map((match) => match[1]);
-			const foreign = hosts.filter((host) => host !== "example.org");
+			// NetNewsWire recognizes a YouTube enclosure by its host; previews never load it.
+			const allowed = new Set(["example.org", "www.youtube.com"]);
+			const foreign = hosts.filter((host) => !allowed.has(host ?? ""));
 			assert.deepEqual([...new Set(foreign)], []);
 		});
 	}

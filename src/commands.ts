@@ -52,6 +52,8 @@ export const BUILT_IN_FIXTURE_NAMES = ["article", "kitchen-sink"] as const;
 export const CATALOG_FIXTURES = {
 	ghost: "Ghost cards, galleries, and lazy images",
 	medium: "Medium figures, unsized images, and footer",
+	"media-rss": "Image, video, and YouTube enclosures with captions",
+	podcast: "Podcast audio enclosure and episode artwork",
 	substack: "Substack images, widgets, and footnotes",
 	wordpress: "WordPress block and classic editor markup",
 } as const;

@@ -19,6 +19,7 @@ import {
 import {
 	checkTargets,
 	extraFixtures,
+	placesEnclosures,
 	type RenderTarget,
 	renderSite,
 	writeGallery,
@@ -60,7 +61,9 @@ export default async function check({ values }: Args): Promise<void> {
 	const theme = findTheme(root);
 	console.log(`nnw-theme ${version()}`);
 	printWarnings(staleStubs(root));
-	const targets = checkTargets(extraFixtures(root));
+	const targets = checkTargets(extraFixtures(root), {
+		enclosuresMacro: placesEnclosures(theme),
+	});
 	const expected = expectations(root, targets);
 	const progress = new CheckProgress(targets.length);
 	progress.status("Validating and packaging the theme…");

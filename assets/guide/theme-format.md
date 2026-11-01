@@ -39,12 +39,56 @@ comment early and shows the rest of it as text. `check` fails on them. NetNewsWi
 `:root`; a theme with its own typography should not, because that shorthand resets
 `font-family` and `line-height`.
 
-The renderer pins NetNewsWire `mac-7.2b4` commit
-`b7f4d8c7d273e4247c5d033ee47014805072297b`. It uses upstream `core.css`, macOS and
+## Enclosures
+
+NetNewsWire shows an article's enclosures (RSS `<enclosure>` and Media RSS items) as
+players and images. A template places them with the `enclosures` macro; one without it
+gets them appended after the body, inside the body container, and its body is then
+wrapped in an extra `<div>` (so the enclosures escape any tag the body leaves open).
+That wrapper changes the body's children: a theme whose selectors rely on
+`.articleBody > …` should place the macro itself. NetNewsWire tests for the literal
+macro text anywhere in `template.html`, comments included.
+
+The markup is fixed and carries no inline styles:
+
+```html
+<div class="nnw-enclosures">
+  <div class="nnw-enclosure nnw-enclosure-image"><img src="…" alt="" width="…" height="…"></div>
+  <div class="nnw-enclosure nnw-enclosure-audio"><audio controls preload="none" src="…"></audio>
+    <div class="nnw-enclosure-caption">Title · 1:54:09 · 54.9 MB</div></div>
+  <div class="nnw-enclosure nnw-enclosure-video"><video controls preload="metadata" playsinline …></video></div>
+  <div class="nnw-enclosure nnw-enclosure-video"><iframe src="https://www.youtube-nocookie.com/embed/…" …></iframe></div>
+</div>
+```
+
+Images and video carry the feed's `width` and `height` when it gives both; a caption
+appears only when there is text for it. The audio caption joins the title (else the
+file name), duration, and size with ` · `. A YouTube channel enclosure becomes the
+iframe player. Enclosures whose URL already appears in the body are skipped, and
+documents are never shown. When nothing visual remains, neither an enclosure nor an
+image or video in the body, the article's image (or thumbnail) leads the list as an
+image enclosure: a podcast episode's artwork above its player. A video uses that image
+as its poster.
+
+NetNewsWire releases before enclosure support leave the macro as literal text in
+every article, so a theme that places it should hide its container when it holds no
+enclosures, for example `<div class="my-enclosures">[[enclosures]]</div>` with
+`.my-enclosures:not(:has(.nnw-enclosures)) { display: none; }`. `check` renders the
+article fixture that way too and fails if the text shows. With enclosures in a
+fixture, `check` also fails an enclosure image, player, or video that is hidden,
+leaves the window, or is drawn out of its shape, an audio player too narrow to seek,
+and an illegible caption.
+
+## Pinned NetNewsWire
+
+The renderer pins NetNewsWire `main` commit
+`70c5dce656487bdab9e0226c318acc1a15071cf4`, the first with enclosure support. It uses upstream `core.css`, macOS and
 iOS page skeletons, and `main.js`, `main_mac.js`, `main_ios.js`, and `newsfoot.js`.
 These files ship inside the `nnw-theme` package, verified by SHA-256, so previews work
 offline. iPhone and iPad share the iOS skeleton. WebKit native
 color-scheme emulation controls light/dark captures; CSS is not rewritten.
+
+## Scripts and resources
 
 Inline scripts in `template.html` are supported. External scripts and stylesheets are
 rejected. Remote theme-owned fonts, images, audio, or video require an explicit local

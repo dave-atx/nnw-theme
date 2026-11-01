@@ -11,6 +11,7 @@ import {
 	LARGE_DYNAMIC_TYPE_SIZE,
 	LARGE_TEXT_SIZE_CLASS,
 	normalTargets,
+	offlineEnclosures,
 	offlineMedia,
 	RenderTarget,
 	removeScripts,
@@ -48,6 +49,102 @@ describe("macros", () => {
 		assert.equal(checkTargets().length, 16);
 		assert.equal(checkTargets().filter((target) => !target.themeScripts).length, 2);
 		assert.equal(checkTargets().filter((target) => target.largeText).length, 2);
+	});
+
+	test("a template with [[enclosures]] adds two older-NetNewsWire targets", () => {
+		const older = checkTargets([], { enclosuresMacro: true }).filter((t) => t.olderNetNewsWire);
+		assert.deepEqual(
+			older.map((target) => target.slug),
+			["article-mac-light-older-netnewswire", "article-iphone-dark-older-netnewswire"],
+		);
+		assert.equal(older[0]?.scenario, "older-netnewswire");
+		assert.equal(older[0]?.label, "Article · Mac · light · older NetNewsWire");
+		assert.equal(checkTargets().filter((t) => t.olderNetNewsWire).length, 0);
+	});
+});
+
+describe("enclosures", () => {
+	const fixture = {
+		title: "Episode",
+		body: "<p>Show notes.</p>",
+		image_url: "https://x.test/art.jpg",
+		attachments: [
+			{ url: "https://x.test/ep.mp3", title: "Episode", duration_in_seconds: 61 },
+			{ url: "https://x.test/notes.pdf", medium: "document" },
+		],
+	};
+	const enclosure = (page: string) => page.slice(page.indexOf('<div class="nnw-enclosures">'));
+
+	test("a template without the macro gets them after a wrapped body", () => {
+		const snapshot = makeSnapshot(temporaryDirectory());
+		const page = renderPage(STARTER, fixture, normalTargets()[0] as RenderTarget, snapshot);
+		assert.ok(page.includes('<div><p>Show notes.</p></div><div class="nnw-enclosures">'));
+		assert.match(enclosure(page), /<audio controls preload="none"><\/audio>/);
+		assert.match(enclosure(page), /Episode · 1:01/);
+		assert.ok(!page.includes("https://x.test/"), "nothing fetches");
+	});
+
+	test("a template with the macro places them, and older NetNewsWire leaves it", () => {
+		const snapshot = makeSnapshot(temporaryDirectory());
+		const theme = temporaryDirectory();
+		for (const name of ["Info.plist", "stylesheet.css"]) {
+			writeFileSync(join(theme, name), readFileSync(join(STARTER, name)));
+		}
+		writeFileSync(
+			join(theme, "template.html"),
+			'<div class="articleBody">[[body]]</div><aside>[[enclosures]]</aside>',
+		);
+		const page = renderPage(theme, fixture, normalTargets()[0] as RenderTarget, snapshot);
+		assert.ok(
+			page.includes(
+				'<div class="articleBody"><p>Show notes.</p></div><aside><div class="nnw-enclosures">',
+			),
+		);
+		const older = renderPage(
+			theme,
+			fixture,
+			new RenderTarget("article", "mac", "light", { olderNetNewsWire: true }),
+			snapshot,
+		);
+		assert.ok(
+			older.includes(
+				'<div class="articleBody"><p>Show notes.</p></div><aside>[[enclosures]]</aside>',
+			),
+		);
+		assert.ok(!older.includes("nnw-enclosures"));
+	});
+
+	test("offline enclosures keep their shape and load only fixture media", () => {
+		const media = temporaryDirectory();
+		writeFiles(media, { "clip.mp4": "MP4", "art.png": "PNG" });
+		const html = offlineEnclosures(
+			'<video controls preload="metadata" playsinline src="https://x.test/v.mp4" width="16" height="9" poster="https://x.test/p.jpg"></video>' +
+				'<video controls src="media/clip.mp4" poster="media/art.png"></video>' +
+				'<video controls src="https://x.test/v.mp4"></video>' +
+				'<audio controls preload="none" src="media/missing.mp3"></audio>' +
+				'<iframe src="https://www.youtube-nocookie.com/embed/x" width="640" height="390" allowfullscreen></iframe>',
+			media,
+		);
+		const placeholder16x9 = offlineMedia(
+			'<img src="https://x.test/a" width="16" height="9">',
+		).match(/src="([^"]+)"/)?.[1];
+		assert.ok(
+			html.startsWith(
+				`<video controls preload="metadata" playsinline width="16" height="9" poster="${placeholder16x9}">`,
+			),
+		);
+		assert.ok(
+			html.includes(`src="data:video/mp4;base64,${Buffer.from("MP4").toString("base64")}"`),
+		);
+		assert.ok(
+			html.includes(`poster="data:image/png;base64,${Buffer.from("PNG").toString("base64")}"`),
+		);
+		assert.ok(html.includes('<audio controls preload="none"></audio>'));
+		assert.match(
+			html,
+			/<iframe width="640" height="390" allowfullscreen srcdoc="[^"]*640 × 390 YouTube player">/,
+		);
+		assert.ok(!html.includes("x.test") && !html.includes("youtube-nocookie"));
 	});
 });
 

@@ -14,6 +14,8 @@ prescribed aesthetic.
 - Check large-text macOS and iPhone renders for clipping, overlap, and lost hierarchy.
   These exercise the real mechanisms: a macOS size class and an iOS Dynamic Type size.
 - Check JavaScript-off macOS and iPhone renders for readable content and usable links.
+- If the theme styles enclosures, check the `podcast` and `media-rss` fixtures: players,
+  captions, and the article image leading a podcast episode, in light and dark.
 - Inspect a real WebKit screenshot, not only the live gallery or Chromium fallback.
 - Promote `screenshots/theme-preview.png` only when the 16:10 macOS article image is
   an intentional representation of the release.
