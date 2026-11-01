@@ -10,6 +10,7 @@
 			"**",
 			"!assets/netnewswire",
 			"!assets/footnotes.js",
+			"!assets/enclosures.js",
 			"!test/fixtures/**/*.nnwtheme"
 		]
 	},

@@ -1,6 +1,6 @@
 {
-	"release": "mac-7.2b4",
-	"commit": "b7f4d8c7d273e4247c5d033ee47014805072297b",
+	"release": "main-70c5dce",
+	"commit": "70c5dce656487bdab9e0226c318acc1a15071cf4",
 	"files": [
 		{
 			"destination": "LICENSE",
@@ -20,7 +20,7 @@
 		{
 			"destination": "Shared/core.css",
 			"source": "Shared/Article Rendering/core.css",
-			"sha256": "d67552259cb45261e1aacf0c1af6bc39b560b084c7b9e3943191907e0977cd4d"
+			"sha256": "3cdc76a22a6bbcd1aeed6eec4611598bb64a457cade3e1553e7b88f03bc78ef9"
 		},
 		{
 			"destination": "Shared/main.js",

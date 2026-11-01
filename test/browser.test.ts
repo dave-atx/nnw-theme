@@ -16,11 +16,13 @@ const PASSING: PageState = {
 	article: true,
 	textLength: 100,
 	unresolved: false,
+	literalEnclosures: false,
 	overflow: false,
 	brokenImages: [],
 	collapsedImages: [],
 	unloadedImages: [],
 	footnotes: [],
+	enclosures: [],
 	blocked: [],
 	pageErrors: [],
 };
@@ -224,6 +226,62 @@ figure img { display: block; margin: 0 -48px; width: calc(100% + 96px); }</style
 		assert.deepEqual(results["showcase-ipad-light-card"], []);
 		const image = readFileSync(join(site, "screenshots", "showcase-ipad-light-card.png"));
 		assert.deepEqual([image.readUInt32BE(16), image.readUInt32BE(20)], [1600, 1104]);
+	});
+
+	test("enclosures must show, fit, keep their shape, and have legible captions", async () => {
+		const svg = (w: number, h: number) =>
+			"data:image/svg+xml," +
+			encodeURIComponent(
+				`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"/>`,
+			);
+		const enclosure = (kind: string, inner: string) =>
+			`<div class="nnw-enclosure nnw-enclosure-${kind}">${inner}</div>`;
+		const site = temporaryDirectory();
+		writeFiles(site, {
+			"pages/enclosures-iphone-light.html": `<!doctype html><html><head><meta charset="utf-8">
+<style>body { margin: 0; overflow-x: hidden; } .squash { width: 100%; height: 50px; }</style></head>
+<body><div class="articleBody"><p>Readable article text that is comfortably longer than forty characters.</p></div>
+<div class="nnw-enclosures">
+${enclosure("image", `<img src="${svg(400, 300)}" style="width: 100%">`)}
+${enclosure("image", `<img src="${svg(400, 300)}" class="squash">`)}
+${enclosure("image", `<img src="${svg(800, 100)}" style="width: 800px; max-width: none">`)}
+${enclosure("audio", '<audio controls style="width: 120px"></audio><div class="nnw-enclosure-caption" style="color: #fefefe">Episode · 1:00</div>')}
+${enclosure("audio", '<audio controls style="display: none"></audio>')}
+${enclosure("video", '<iframe srcdoc="" width="640" height="390" style="border: 0; width: 100%; height: 40px"></iframe>')}
+${enclosure("video", '<video controls width="16" height="9" style="width: 100%; height: auto"></video><div class="nnw-enclosure-caption">Legible <span style="font-size: 8px">tiny</span></div>')}
+</div></body></html>`,
+		});
+		const results = await checkPages(site, [new RenderTarget("enclosures", "iphone", "light")]);
+		assert.deepEqual(results["enclosures-iphone-light"], [
+			"horizontal document overflow",
+			"enclosure 2 (image): drawn 393×50, distorting its 400×300 shape",
+			"enclosure 3 (image): spans 0–800px, outside the 393px window",
+			"enclosure 4 (audio player): only 120px wide",
+			"enclosure 5 (audio player): not shown",
+			"enclosure 6 (video player): drawn 393×40, not a video's shape",
+			'enclosure caption "Episode · 1:00": text 254,254,254 is illegible on 255,255,255',
+		]);
+	});
+
+	test("older NetNewsWire fails only a visible [[enclosures]]", async () => {
+		const article =
+			'<div class="articleBody"><p>Readable article text that is comfortably longer than forty characters.</p></div>';
+		const site = temporaryDirectory();
+		writeFiles(site, {
+			"pages/article-mac-light-older-netnewswire.html": `<!doctype html><body>${article}<div>[[enclosures]]</div></body>`,
+			"pages/hidden-mac-light-older-netnewswire.html": `<!doctype html><head><style>
+.e:not(:has(.nnw-enclosures)) { display: none; }</style></head><body>${article}<div class="e">[[enclosures]]</div></body>`,
+		});
+		const older = { olderNetNewsWire: true };
+		const results = await checkPages(site, [
+			new RenderTarget("article", "mac", "light", older),
+			new RenderTarget("hidden", "mac", "light", older),
+		]);
+		assert.deepEqual(results["article-mac-light-older-netnewswire"], [
+			"[[enclosures]] shows as text in NetNewsWire releases without enclosure support; " +
+				"hide its element when it holds no .nnw-enclosures",
+		]);
+		assert.deepEqual(results["hidden-mac-light-older-netnewswire"], []);
 	});
 
 	test("a page without an article fails, and a look-alike origin is blocked", async () => {

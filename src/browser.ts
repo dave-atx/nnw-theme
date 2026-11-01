@@ -13,6 +13,8 @@ import { pyReprList } from "./pyformat.ts";
 import type { RenderTarget } from "./render.ts";
 
 const FOOTNOTE_CHECK = readFileSync(packagePath("assets", "footnotes.js"), "utf8");
+const ENCLOSURE_CHECK = readFileSync(packagePath("assets", "enclosures.js"), "utf8");
+const ENCLOSURES_MACRO = "[[enclosures]]";
 const LIVE_RELOAD = readFileSync(packagePath("assets", "live-reload.js"), "utf8");
 const NOT_INSTALLED = "WebKit is not installed; run `npx nnw-theme@2 setup`";
 
@@ -176,11 +178,14 @@ export interface PageState {
 	article: boolean;
 	textLength: number;
 	unresolved: boolean;
+	/** Older NetNewsWire only: the template's [[enclosures]] shows as text. */
+	literalEnclosures: boolean;
 	overflow: boolean;
 	brokenImages: string[];
 	collapsedImages: string[];
 	unloadedImages: string[];
 	footnotes: string[];
+	enclosures: string[];
 	blocked: string[];
 	pageErrors: string[];
 }
@@ -190,12 +195,19 @@ export function failures(state: PageState): string[] {
 	if (!state.article || state.textLength < 40)
 		found.push("article content is missing or unreadable");
 	if (state.unresolved) found.push("unresolved theme macro");
+	if (state.literalEnclosures) {
+		found.push(
+			"[[enclosures]] shows as text in NetNewsWire releases without enclosure support; " +
+				"hide its element when it holds no .nnw-enclosures",
+		);
+	}
 	if (state.overflow) found.push("horizontal document overflow");
 	if (state.brokenImages.length) found.push(`broken images: ${pyReprList(state.brokenImages)}`);
 	if (state.collapsedImages.length)
 		found.push(`images drawn at zero size: ${pyReprList(state.collapsedImages)}`);
 	if (state.unloadedImages.length)
 		found.push(`images still loading: ${pyReprList(state.unloadedImages)}`);
+	found.push(...(state.enclosures ?? []));
 	found.push(...(state.footnotes ?? []));
 	if (state.blocked.length) found.push(`external requests: ${pyReprList(state.blocked)}`);
 	if (state.pageErrors.length) found.push(`page errors: ${pyReprList(state.pageErrors)}`);
@@ -216,16 +228,21 @@ async function loadImages(timeout: number) {
 	]);
 }
 
-// Runs in the page after its screenshot.
-function pageState() {
+// Runs in the page after its screenshot. With olderNetNewsWire, the template's
+// [[enclosures]] is expected in the markup and fails only if it shows as text.
+function pageState({ olderNetNewsWire, macro }: { olderNetNewsWire: boolean; macro: string }) {
 	const article = document.querySelector<HTMLElement>(".articleBody");
 	const root = document.documentElement;
+	const html = document.body.innerHTML;
 	return {
 		article: Boolean(article),
 		textLength: (article?.innerText || "").trim().length,
 		// Body only: macOS CSS legitimately keeps the font-size macro literal. Match
 		// whole macro names, so a theme script's regex such as /[[(]/ is no macro.
-		unresolved: /\[\[[A-Za-z0-9_-]+\]\]/.test(document.body.innerHTML),
+		unresolved: /\[\[[A-Za-z0-9_-]+\]\]/.test(
+			olderNetNewsWire ? html.replaceAll(macro, "") : html,
+		),
+		literalEnclosures: olderNetNewsWire && document.body.innerText.includes(macro),
 		overflow: root.scrollWidth > root.clientWidth + 1,
 		brokenImages: [...document.images]
 			.filter((image) => image.complete && image.naturalWidth === 0)
@@ -341,12 +358,16 @@ async function checkPage(
 		await page.goto(url, { waitUntil: "networkidle" });
 		await page.evaluate(loadImages, 10_000);
 		await page.screenshot({ path: screenshot, fullPage: !target.card });
-		const state = await page.evaluate(pageState);
+		const state = await page.evaluate(pageState, {
+			olderNetNewsWire: target.olderNetNewsWire,
+			macro: ENCLOSURES_MACRO,
+		});
+		const enclosures = (await page.evaluate(`(${ENCLOSURE_CHECK})()`)) as string[];
 		// Last: it clicks footnotes open, so it must not disturb the screenshot.
 		const found = (await page.evaluate(
 			`(${FOOTNOTE_CHECK})(${JSON.stringify(footnotes)})`,
 		)) as string[];
-		return { ...state, footnotes: found, blocked, pageErrors };
+		return { ...state, enclosures, footnotes: found, blocked, pageErrors };
 	} finally {
 		await context.close();
 	}

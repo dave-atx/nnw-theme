@@ -10,6 +10,12 @@ import {
 import { extname, isAbsolute, join, relative } from "node:path";
 import { decodeHTML } from "entities";
 import { Parser } from "htmlparser2";
+import {
+	enclosuresHTML,
+	fixtureAttachments,
+	fixtureImageURL,
+	placeEnclosures,
+} from "./enclosures.ts";
 import { renderingInputs } from "./netnewswire.ts";
 import {
 	type Fixture,
@@ -81,7 +87,7 @@ const VIEWPORTS: Record<Platform, [number, number]> = {
 // The marketplace card shows its image at 347x240, cropped from the top.
 const CARD_VIEWPORT: [number, number] = [800, 552];
 // Fixture images a fixture may reference as media/NAME, from fixtures/media/NAME.
-const MEDIA_TYPES: Record<string, string> = {
+const IMAGE_TYPES: Record<string, string> = {
 	".avif": "image/avif",
 	".gif": "image/gif",
 	".jpeg": "image/jpeg",
@@ -90,6 +96,23 @@ const MEDIA_TYPES: Record<string, string> = {
 	".svg": "image/svg+xml",
 	".webp": "image/webp",
 };
+// Enclosure players may also play a fixture's own audio or video file.
+const PLAYABLE_TYPES: Record<string, string> = {
+	".aac": "audio/aac",
+	".flac": "audio/flac",
+	".m4a": "audio/mp4",
+	".m4v": "video/mp4",
+	".mov": "video/quicktime",
+	".mp3": "audio/mpeg",
+	".mp4": "video/mp4",
+	".oga": "audio/ogg",
+	".ogg": "audio/ogg",
+	".opus": "audio/ogg",
+	".wav": "audio/wav",
+	".webm": "video/webm",
+};
+// An enclosure's own tag, as enclosuresHTML writes it.
+const ENCLOSURE_TAG_RE = /<(video|audio|iframe)\b([^>]*)>/g;
 // The template's own fixtures get the full matrix and the stress cases. Any other
 // fixture a theme adds is an extra: checked on Mac and iPhone in both appearances.
 export const FIXTURE_NAMES: Record<string, string> = {
@@ -120,6 +143,12 @@ const SCENARIOS: readonly [string, string, string][] = [
 			"Mac and 23 pt Dynamic Type on iPhone.",
 	],
 	[
+		"older-netnewswire",
+		"Older NetNewsWire",
+		"The article fixture as NetNewsWire releases before enclosure support render it: " +
+			"they leave the template's [[enclosures]] macro as literal text, which must not show.",
+	],
+	[
 		"article-javascript-off",
 		"Article JavaScript off",
 		"The article fixture with the theme's own scripts removed, as when a reader turns " +
@@ -134,6 +163,8 @@ const CHECKS = [
 	"no broken images",
 	"no external requests",
 	"no JavaScript errors",
+	"enclosure players and images show, fit the window, and keep their shape",
+	"enclosure captions are legible",
 ];
 
 export class RenderTarget {
@@ -144,6 +175,8 @@ export class RenderTarget {
 	readonly height: number;
 	readonly largeText: boolean;
 	readonly themeScripts: boolean;
+	/** Rendered as NetNewsWire before [[enclosures]]: the macro stays literal. */
+	readonly olderNetNewsWire: boolean;
 	/** A 2x capture of the card viewport alone, for the marketplace card. */
 	readonly card: boolean;
 
@@ -151,7 +184,7 @@ export class RenderTarget {
 		fixture: string,
 		platform: Platform,
 		appearance: Appearance,
-		{ largeText = false, themeScripts = true, card = false } = {},
+		{ largeText = false, themeScripts = true, olderNetNewsWire = false, card = false } = {},
 	) {
 		this.fixture = fixture;
 		this.platform = platform;
@@ -159,6 +192,7 @@ export class RenderTarget {
 		[this.width, this.height] = card ? CARD_VIEWPORT : VIEWPORTS[platform];
 		this.largeText = largeText;
 		this.themeScripts = themeScripts;
+		this.olderNetNewsWire = olderNetNewsWire;
 		this.card = card;
 	}
 
@@ -174,6 +208,7 @@ export class RenderTarget {
 		];
 		if (this.largeText) parts.push("large text");
 		if (!this.themeScripts) parts.push("Article JavaScript off");
+		if (this.olderNetNewsWire) parts.push("older NetNewsWire");
 		if (this.card) parts.push("card");
 		return parts.join(" · ");
 	}
@@ -181,6 +216,7 @@ export class RenderTarget {
 	get scenario(): string {
 		if (this.largeText) return "large-text";
 		if (!this.themeScripts) return "article-javascript-off";
+		if (this.olderNetNewsWire) return "older-netnewswire";
 		return this.fixture;
 	}
 
@@ -188,6 +224,7 @@ export class RenderTarget {
 		const parts = [this.fixture, this.platform, this.appearance];
 		if (this.largeText) parts.push("large-text");
 		if (!this.themeScripts) parts.push("no-article-js");
+		if (this.olderNetNewsWire) parts.push("older-netnewswire");
 		if (this.card) parts.push("card");
 		return parts.join("-");
 	}
@@ -224,14 +261,34 @@ export function normalTargets(extras: readonly string[] = []): RenderTarget[] {
 	return targets;
 }
 
-export function checkTargets(extras: readonly string[] = []): RenderTarget[] {
-	return [
+/**
+ * Everything check renders. A template that places [[enclosures]] itself also gets
+ * the older-NetNewsWire cases, since releases before enclosure support leave that
+ * macro as text in every article.
+ */
+export function checkTargets(
+	extras: readonly string[] = [],
+	{ enclosuresMacro = false } = {},
+): RenderTarget[] {
+	const targets = [
 		...normalTargets(extras),
 		new RenderTarget("kitchen-sink", "mac", "light", { largeText: true }),
 		new RenderTarget("kitchen-sink", "iphone", "light", { largeText: true }),
 		new RenderTarget("article", "mac", "light", { themeScripts: false }),
 		new RenderTarget("article", "iphone", "light", { themeScripts: false }),
 	];
+	if (enclosuresMacro) {
+		targets.push(
+			new RenderTarget("article", "mac", "light", { olderNetNewsWire: true }),
+			new RenderTarget("article", "iphone", "dark", { olderNetNewsWire: true }),
+		);
+	}
+	return targets;
+}
+
+/** Whether a theme places enclosures itself, as NetNewsWire decides it. */
+export function placesEnclosures(theme: string): boolean {
+	return read(join(theme, "template.html")).includes("[[enclosures]]");
 }
 
 /** Perform NetNewsWire's single-pass, non-recursive macro substitution. */
@@ -284,7 +341,7 @@ function fetches(url: string): boolean {
 	return !!value && !value.startsWith("data:") && !value.startsWith("#");
 }
 
-function placeholder(width: string | undefined, height: string | undefined): string {
+function placeholder(width?: string, height?: string): string {
 	const size = [width, height].map((value) =>
 		value && /^[0-9]+$/.test(value) ? Number.parseInt(value, 10) : 0,
 	);
@@ -299,8 +356,12 @@ function placeholder(width: string | undefined, height: string | undefined): str
  * A fixture's own image, media/NAME, as a data URI read from fixtures/media/NAME.
  * Undefined, so a placeholder as before, unless it is an image inside that directory.
  */
-function mediaDataURI(media: string, src: string): string | undefined {
-	const type = MEDIA_TYPES[extname(src).toLowerCase()];
+function mediaDataURI(
+	media: string,
+	src: string,
+	types: Record<string, string> = IMAGE_TYPES,
+): string | undefined {
+	const type = types[extname(src).toLowerCase()];
 	if (!src.startsWith("media/") || !type) return undefined;
 	try {
 		const path = realpathSync(join(media, src.slice("media/".length)));
@@ -346,9 +407,67 @@ export function offlineMedia(body: string, media?: string): string {
 	});
 }
 
+/** A tag's attributes, in order, with their raw (still quoted) values. */
+function parseAttributes(rest: string): [string, string][] {
+	return [...rest.matchAll(ATTRIBUTE_RE)].map((match): [string, string] => [
+		match[1] ?? "",
+		match[2] ?? "",
+	]);
+}
+
+function attributeValue(attributes: [string, string][], name: string): string | undefined {
+	const found = attributes.find(([key]) => key.toLowerCase() === name);
+	return found && decodeHTML(found[1].replace(/^["']+|["']+$/g, ""));
+}
+
+/**
+ * Take enclosures offline, as offlineMedia does a body. Images and a video's poster
+ * become placeholders (media/NAME shows the fixture's file); a player that would
+ * fetch loses its source, as if the file had not loaded, unless it plays a media/
+ * file; a video with nothing to show gets a placeholder poster at its own size, for
+ * the frame it would load; and the YouTube player becomes a same-size placeholder.
+ */
+export function offlineEnclosures(html: string, media?: string): string {
+	const local = (src: string, types?: Record<string, string>) =>
+		media === undefined ? undefined : mediaDataURI(media, src, types);
+	return offlineMedia(html, media).replace(
+		ENCLOSURE_TAG_RE,
+		(_whole, tagName: string, rest: string) => {
+			const attributes = parseAttributes(rest);
+			const width = attributeValue(attributes, "width");
+			const height = attributeValue(attributes, "height");
+			const src = attributeValue(attributes, "src") ?? "";
+			if (tagName === "iframe") {
+				const label = `${width && height ? `${width} × ${height} ` : ""}YouTube player`;
+				const page =
+					"<body style='margin:0;display:grid;place-items:center;height:100vh;" +
+					`background:#8a8f98;color:#fff;font:600 16px system-ui'>${label}`;
+				const kept = attributes.filter(([name]) => name.toLowerCase() !== "src");
+				return `<iframe${kept.map(([n, v]) => (v ? ` ${n}=${v}` : ` ${n}`)).join("")} srcdoc="${escapeHTML(page)}">`;
+			}
+			const playable = fetches(src) ? local(src, PLAYABLE_TYPES) : src;
+			const kept = attributes.filter(
+				([name]) => !["src", "poster"].includes(name.toLowerCase()),
+			);
+			let tag = `<${tagName}${kept.map(([n, v]) => (v ? ` ${n}=${v}` : ` ${n}`)).join("")}`;
+			if (playable) tag += ` src="${escapeHTML(playable)}"`;
+			if (tagName === "video") {
+				const poster = attributeValue(attributes, "poster");
+				let shown: string | undefined;
+				if (poster)
+					shown = fetches(poster) ? (local(poster) ?? placeholder(width, height)) : poster;
+				else if (!playable) shown = placeholder(width, height);
+				if (shown) tag += ` poster="${escapeHTML(shown)}"`;
+			}
+			return `${tag}>`;
+		},
+	);
+}
+
 function fixtureMapping(
 	fixture: Fixture,
 	target: RenderTarget,
+	template: string,
 	media?: string,
 ): Record<string, string> {
 	const mapping: Record<string, string> = {};
@@ -356,7 +475,21 @@ function fixtureMapping(
 	if (!mapping.dateline_style) {
 		mapping.dateline_style = mapping.title ? "articleDateline" : "articleDatelineTitle";
 	}
-	mapping.body = offlineMedia(mapping.body ?? "", media);
+	const body = mapping.body ?? "";
+	mapping.body = offlineMedia(body, media);
+	// NetNewsWire before enclosure support ignores attachments and leaves the macro.
+	if (!target.olderNetNewsWire) {
+		const name = `fixtures/${target.fixture}.toml`;
+		const enclosures = enclosuresHTML(
+			fixtureAttachments(fixture, name),
+			body,
+			fixtureImageURL(fixture, name),
+		);
+		Object.assign(
+			mapping,
+			placeEnclosures(template, mapping.body, offlineEnclosures(enclosures, media)),
+		);
+	}
 	if (!mapping.avatar_src || fetches(mapping.avatar_src)) {
 		mapping.avatar_src = avatarDataURI(mapping.feed_link_title ?? "");
 	}
@@ -459,7 +592,7 @@ export function renderPage(
 	);
 
 	const template = read(join(theme, "template.html"));
-	let body = substitute(template, fixtureMapping(fixture, target, media));
+	let body = substitute(template, fixtureMapping(fixture, target, template, media));
 	if (!target.themeScripts) body = removeScripts(body);
 	let page = substitute(skeleton, {
 		title: fixture.title ?? "Theme preview",
