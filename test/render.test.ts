@@ -81,7 +81,7 @@ describe("enclosures", () => {
 		assert.ok(page.includes('<div><p>Show notes.</p></div><div class="nnw-enclosures">'));
 		assert.match(enclosure(page), /<audio controls preload="none"><\/audio>/);
 		assert.match(enclosure(page), /Episode · 1:01/);
-		assert.ok(!page.includes("https://x.test/"), "nothing fetches");
+		assert.doesNotMatch(page, /https:\/\/x\.test\//, "nothing fetches");
 	});
 
 	test("a template with the macro places them, and older NetNewsWire leaves it", () => {
