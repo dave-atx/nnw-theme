@@ -81,8 +81,9 @@ and an illegible caption.
 
 ## Pinned NetNewsWire
 
-The renderer pins NetNewsWire `main` commit
-`70c5dce656487bdab9e0226c318acc1a15071cf4`, the first with enclosure support. It uses upstream `core.css`, macOS and
+The renderer pins NetNewsWire 7.3b3 for Mac (`mac-7.3b3`, commit
+`be5cd9e92f400d453672e45087c06761a9ac3c00`), the first release with enclosure support,
+which iOS 7.3 shares. It uses upstream `core.css`, macOS and
 iOS page skeletons, and `main.js`, `main_mac.js`, `main_ios.js`, and `newsfoot.js`.
 These files ship inside the `nnw-theme` package, verified by SHA-256, so previews work
 offline. iPhone and iPad share the iOS skeleton. WebKit native

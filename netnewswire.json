@@ -1,6 +1,6 @@
 {
-	"release": "main-70c5dce",
-	"commit": "70c5dce656487bdab9e0226c318acc1a15071cf4",
+	"release": "mac-7.3b3",
+	"commit": "be5cd9e92f400d453672e45087c06761a9ac3c00",
 	"files": [
 		{
 			"destination": "LICENSE",
@@ -10,7 +10,7 @@
 		{
 			"destination": "Mac/main_mac.js",
 			"source": "Mac/MainWindow/Detail/main_mac.js",
-			"sha256": "3ac1ef46523f6c4d8103fe7dbe6f45486d57a94c3d54d0fcb6211a35215bb676"
+			"sha256": "51c8812b9063d70aeb9a163a224bc83954f127dfb78736b2016d6572dd9ab63f"
 		},
 		{
 			"destination": "Mac/page.html",
@@ -25,7 +25,7 @@
 		{
 			"destination": "Shared/main.js",
 			"source": "Shared/Article Rendering/main.js",
-			"sha256": "847dc1f06ec0e7f96aee1004fd6186771db907445347cf0371abc67158aadb5a"
+			"sha256": "7f7eb22baec0da44b8121d2f11b6b8aa84a89a28e90b2dfb38941dda3d859ea3"
 		},
 		{
 			"destination": "Shared/newsfoot.js",
@@ -35,7 +35,7 @@
 		{
 			"destination": "iOS/main_ios.js",
 			"source": "iOS/Resources/main_ios.js",
-			"sha256": "e764183ea8e9ce75df13d268834741b176afdb440eb492efeaba8ccabd7dfb8b"
+			"sha256": "ab60f228e06b11589aefaac579a5ea42d1ff5ecf43aab44e2eba7679a18d6ef2"
 		},
 		{
 			"destination": "iOS/page.html",
