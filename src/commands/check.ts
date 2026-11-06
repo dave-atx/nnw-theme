@@ -47,7 +47,7 @@ export function fixtureHint(root: string): string | undefined {
 	if (repositoryFixtures(root).length) return undefined;
 	return (
 		"Hint: this theme has no fixtures of its own. `npx nnw-theme@2 fixture list` " +
-		"shows ready-made ones modeled on WordPress, Ghost, Substack, and Medium markup."
+		"shows ready-made ones modeled on WordPress, Ghost, Substack, Medium, and Mastodon markup."
 	);
 }
 

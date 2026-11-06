@@ -24,7 +24,7 @@ npx nnw-theme@2 fixture add wordpress --force    # replace a copy with the curre
 
 Each is copied into `fixtures/` and is from then on an ordinary fixture of the
 repository, checked on macOS and iPhone in light and dark: four more renders per
-fixture in every `check`, twenty-four for all six. Their structure, classes, and attributes
+fixture in every `check`, twenty-eight for all seven. Their structure, classes, and attributes
 come from real feeds; their text is synthetic and their links point at `example.org`.
 The copy never changes on its own when `nnw-theme` updates. A header comment records
 its catalog version, and `fixture list` says when a newer one is available; take it

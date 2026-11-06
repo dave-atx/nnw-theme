@@ -1,0 +1,50 @@
+# nnw-theme catalog fixture: mastodon (catalog version 1)
+# Markup: a Mastodon post from an account's RSS feed (https://example.org/@NAME.rss), as
+#   NetNewsWire renders it, captured 2026-11. Mastodon items have no title, and
+#   the feed is named for the account. The body is Mastodon's status HTML with its RSS
+#   content-warning preroll; the post's images arrive only as Media RSS
+#   <media:content> items, which NetNewsWire keeps without their alt text or size.
+# Text and links are synthetic; the structure, classes, and attributes are real.
+# Exercises: an untitled article (articleDatelineTitle), the content-warning paragraph
+#   and rule, h-card mentions and hashtags, a long link split into Mastodon's
+#   .invisible and .ellipsis spans (NetNewsWire shows all of them), 16x16 custom
+#   emoji inline in the text, a quote post's RE: fallback, and three unsized image
+#   enclosures with no caption.
+# Enclosures need NetNewsWire 7.3b3 for Mac or 7.3 for iOS, or later.
+# Refresh: npx nnw-theme@2 fixture add mastodon --force
+
+date_long = 'November 3, 2026'
+date_medium = 'Nov 3, 2026'
+date_short = '11/3/26'
+dateline_style = 'articleDatelineTitle'
+datetime_long = 'November 3, 2026 at 8:12:47 PM'
+datetime_medium = 'Nov 3, 2026 at 8:12 PM'
+datetime_short = '11/3/26, 8:12 PM'
+feed_link = 'https://example.org/@ines'
+feed_link_title = 'Ines Calloway 📷 (@ines@example.org)'
+preferred_link = 'https://example.org/@ines/115501234567890123'
+time_long = '8:12:47 PM PST'
+time_medium = '8:12:47 PM'
+time_short = '8:12 PM'
+title = ''
+body = '''
+<p><strong>Content warning:</strong> darkroom chemistry, one (1) paper cut</p><hr /><p class="quote-inline">RE: <a href="https://example.org/@kai/115498765432109876" target="_blank" rel="nofollow noopener" translate="no"><span class="invisible">https://</span><span class="ellipsis">example.org/@kai/1154987654321</span><span class="invisible">09876</span></a></p><p>First roll through the new tank and it came out… fine? Better than fine. <span class="h-card" translate="no"><a href="https://example.org/@kai" class="u-url mention">@<span>kai</span></a></span> was right about the agitation schedule, and <span class="h-card" translate="no"><a href="https://example.org/@marguerite" class="u-url mention">@<span>marguerite</span></a></span> was right that I would cut myself opening the canister <img rel="emoji" draggable="false" width="16" height="16" class="emojione custom-emoji" alt=":blobcat_sweat:" title=":blobcat_sweat:" src="https://example.org/system/custom_emojis/images/000/012/345/original/blobcat_sweat.png" /></p><p>Developer at 20°C, 9 minutes, inversions every 30 seconds for the first minute and then every minute after.<br />Stop bath, fixer, a long rinse, and a lot of staring at the negatives in front of the window like they would tell me something.</p><p>Notes and the full chart are up here: <a href="https://example.org/2026/11/notes-from-the-darkroom-first-roll-through-the-new-tank" target="_blank" rel="nofollow noopener" translate="no"><span class="invisible">https://</span><span class="ellipsis">example.org/2026/11/notes-from</span><span class="invisible">-the-darkroom-first-roll-through-the-new-tank</span></a> <img rel="emoji" draggable="false" width="16" height="16" class="emojione custom-emoji" alt=":film:" title=":film:" src="https://example.org/system/custom_emojis/images/000/006/789/original/film.png" /></p><p><a href="https://example.org/tags/FilmPhotography" class="mention hashtag" rel="tag">#<span>FilmPhotography</span></a> <a href="https://example.org/tags/Darkroom" class="mention hashtag" rel="tag">#<span>Darkroom</span></a> <a href="https://example.org/tags/BelieveInFilm" class="mention hashtag" rel="tag">#<span>BelieveInFilm</span></a></p>
+'''
+
+[[attachments]]
+url = 'https://example.org/system/media_attachments/files/115/501/234/567/890/123/original/9f2c4e1a7b3d5f60.jpg'
+mime_type = 'image/jpeg'
+size_in_bytes = 482113
+medium = 'image'
+
+[[attachments]]
+url = 'https://example.org/system/media_attachments/files/115/501/234/567/890/124/original/0b7d1e93c4a6f528.jpg'
+mime_type = 'image/jpeg'
+size_in_bytes = 397208
+medium = 'image'
+
+[[attachments]]
+url = 'https://example.org/system/media_attachments/files/115/501/234/567/890/125/original/c81a5f02e9d74b36.png'
+mime_type = 'image/png'
+size_in_bytes = 1204977
+medium = 'image'

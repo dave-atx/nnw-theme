@@ -51,6 +51,7 @@ export const BUILT_IN_FIXTURE_NAMES = ["article", "kitchen-sink"] as const;
  */
 export const CATALOG_FIXTURES = {
 	ghost: "Ghost cards, galleries, and lazy images",
+	mastodon: "Mastodon post: mentions, hashtags, custom emoji, image enclosures",
 	medium: "Medium figures, unsized images, and footer",
 	"media-rss": "Image, video, and YouTube enclosures with captions",
 	podcast: "Podcast audio enclosure and episode artwork",
@@ -177,7 +178,7 @@ export const COMMANDS: readonly CommandSpec[] = [
 	},
 	{
 		name: "fixture",
-		summary: "add fixtures modeled on WordPress, Ghost, Substack, and Medium",
+		summary: "add fixtures modeled on WordPress, Ghost, Substack, Medium, and Mastodon",
 		description:
 			"Copy ready-made fixtures with markup modeled on what major publishing platforms " +
 			"send into fixtures/, where preview and check pick them up. Each one adds four " +

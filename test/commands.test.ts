@@ -206,7 +206,10 @@ describe("fixture", () => {
 		assert.match(missing.stderr, /required: names/);
 		const unknown = run(root, "fixture", "add", "blogger");
 		assert.equal(unknown.status, 2);
-		assert.match(unknown.stderr, /invalid choice: 'blogger' \(choose from 'ghost', 'medium'/);
+		assert.match(
+			unknown.stderr,
+			/invalid choice: 'blogger' \(choose from 'ghost', 'mastodon', 'medium'/,
+		);
 		const outside = run(temporaryDirectory(), "fixture", "add", "ghost");
 		assert.match(outside.stderr, /inside the theme repository/);
 	});
