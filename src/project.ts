@@ -173,7 +173,10 @@ export interface FootnoteExpectations {
 	notes?: Record<string, string>;
 	plain_links?: string[];
 	keep_with_word?: boolean;
+	all_converted?: boolean;
 }
+
+const FOOTNOTE_KEYS = ["notes", "plain_links", "keep_with_word", "all_converted"];
 
 function isTable(value: unknown): value is Record<string, unknown> {
 	return (
@@ -186,7 +189,9 @@ function isTable(value: unknown): value is Record<string, unknown> {
  *
  * notes maps each footnote marker's rendered text to the note text its popover must
  * show; plain_links lists CSS selectors for links that must not become footnotes;
- * keep_with_word requires markers written against a word to stay on its line.
+ * keep_with_word requires markers written against a word to stay on its line;
+ * all_converted fails, rather than warns about, a footnote link that never became a
+ * marker.
  */
 export function footnoteExpectations(fixture: Fixture, name: string): FootnoteExpectations {
 	const expect = fixture.expect ?? {};
@@ -199,7 +204,7 @@ export function footnoteExpectations(fixture: Fixture, name: string): FootnoteEx
 		throw new ThemeError(`${name}: [expect] may contain only a [expect.footnotes] table`);
 	}
 	const unknown = Object.keys(footnotes)
-		.filter((key) => !["notes", "plain_links", "keep_with_word"].includes(key))
+		.filter((key) => !FOOTNOTE_KEYS.includes(key))
 		.sort();
 	if (unknown.length) {
 		throw new ThemeError(`${name}: unknown [expect.footnotes] key(s): ${unknown.join(", ")}`);
@@ -224,6 +229,12 @@ export function footnoteExpectations(fixture: Fixture, name: string): FootnoteEx
 			throw new ThemeError(`${name}: expect.footnotes.keep_with_word must be true or false`);
 		}
 		result.keep_with_word = footnotes.keep_with_word;
+	}
+	if ("all_converted" in footnotes) {
+		if (typeof footnotes.all_converted !== "boolean") {
+			throw new ThemeError(`${name}: expect.footnotes.all_converted must be true or false`);
+		}
+		result.all_converted = footnotes.all_converted;
 	}
 	return result;
 }

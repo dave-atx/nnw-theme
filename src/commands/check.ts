@@ -30,16 +30,22 @@ import { staleStubs } from "../stubs.ts";
 import { printWarnings } from "./package.ts";
 import { CheckProgress } from "./progress.ts";
 
+/**
+ * Each fixture's [expect.footnotes]. A fixture that models a sync service, with
+ * base_url or deliveries, fails a footnote link that never became a marker unless it
+ * sets all_converted = false; any other fixture only warns about one, unless it sets
+ * all_converted = true.
+ */
 export function expectations(
 	root: string,
 	targets: readonly RenderTarget[],
 ): Record<string, FootnoteExpectations> {
 	const result: Record<string, FootnoteExpectations> = {};
 	for (const name of new Set(targets.map((target) => target.fixture))) {
-		result[name] = footnoteExpectations(
-			readFixture(fixturePath(root, name)),
-			`fixtures/${name}.toml`,
-		);
+		const fixture = readFixture(fixturePath(root, name));
+		const expected = footnoteExpectations(fixture, `fixtures/${name}.toml`);
+		expected.all_converted ??= "base_url" in fixture || "deliveries" in fixture;
+		result[name] = expected;
 	}
 	return result;
 }
@@ -79,8 +85,9 @@ export default async function check({ values }: Args): Promise<void> {
 	progress.status(`Rendering ${targets.length} pages…`);
 	const site = renderSite(root, theme, targets);
 	let results: Record<string, string[]>;
+	const warned: Record<string, string[]> = {};
 	try {
-		results = await checkPages(site, targets, progress, expected);
+		results = await checkPages(site, targets, progress, expected, warned);
 	} finally {
 		progress.done();
 	}
@@ -88,16 +95,22 @@ export default async function check({ values }: Args): Promise<void> {
 	const failures = targets.flatMap((target) =>
 		(results[target.slug] ?? []).map((message) => `${target.label}: ${message}`),
 	);
+	const warnings = targets.flatMap((target) =>
+		(warned[target.slug] ?? []).map((message) => `Warning: ${target.label}: ${message}`),
+	);
+	for (const warning of warnings) console.log(warning);
+	const warningLines = warnings.map((warning) => `${warning}\n`).join("");
 	const passed = targets.filter((target) => !results[target.slug]?.length).length;
 	const packageName = basename(archive.path);
 	const footer = `nnw-theme ${version()}\n`;
 	const report = join(root, "build", "check-report.txt");
 	if (failures.length) {
-		writeFileSync(report, `FAIL\n${failures.join("\n")}\n${footer}`, "utf8");
+		writeFileSync(report, `FAIL\n${failures.join("\n")}\n${warningLines}${footer}`, "utf8");
 	} else {
 		writeFileSync(
 			report,
-			`PASS\n${targets.length} WebKit renders checked\nPackage: ${packageName}\n${footer}`,
+			`PASS\n${targets.length} WebKit renders checked\nPackage: ${packageName}\n` +
+				`${warningLines}${footer}`,
 			"utf8",
 		);
 		console.log(`PASS: ${targets.length} WebKit renders and ${packageName}`);

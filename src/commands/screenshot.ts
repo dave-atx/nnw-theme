@@ -31,7 +31,10 @@ export default async function screenshot({ values }: Args): Promise<void> {
 	const theme = findTheme(root);
 	const target = selectTarget(root, values);
 	const site = renderSite(root, theme, [target]);
-	const results = await checkPages(site, [target], undefined, expectations(root, [target]));
+	const warned: Record<string, string[]> = {};
+	const expected = expectations(root, [target]);
+	const results = await checkPages(site, [target], undefined, expected, warned);
+	for (const warning of warned[target.slug] ?? []) console.log(`Warning: ${warning}`);
 	const failures = results[target.slug] ?? [];
 	if (failures.length) {
 		throw new ThemeError(`screenshot checks failed:\n- ${failures.join("\n- ")}`);

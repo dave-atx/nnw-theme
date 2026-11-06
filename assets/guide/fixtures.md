@@ -104,15 +104,21 @@ each is copied into every page that renders the fixture.
 
 Footnote markers are the links NetNewsWire's `newsfoot.js` handles: `a.footnote`.
 Its `main.js` adds that class to local `sup > a[href*='#fn']` links and to Substack's
-`a[id^='footnote-anchor-']` links; a theme script may add it to other formats. `check` requires every visible marker to resolve to a
+`a[id^='footnote-anchor-']` links, where local means the link starts with the page's
+base URL; a theme script may add it to other formats. `check` requires every visible marker to resolve to a
 non-empty note with a unique id, stay legible on its background, match the other
 markers' height, font size, and baseline offset, and open a popover with its note
-without resizing. A fixture may declare exact expectations after its other keys:
+without resizing. A `sup > a` or Substack anchor whose fragment names an element in
+the article but that never became a marker is opened as a link instead: `check` warns
+about one, and fails it in a fixture with `base_url` or `deliveries`, or with
+`all_converted = true`. List a link that really is ordinary in `plain_links`.
+A fixture may declare exact expectations after its other keys:
 
 ```toml
 [expect.footnotes]
 plain_links = ["#ordinary-sup-link"]   # CSS selectors that must not become markers
 keep_with_word = true                  # markers must not wrap apart from their word
+all_converted = true                   # fail, not warn, on footnote links left plain
 
 [expect.footnotes.notes]
 "1" = "First note."                    # marker text as rendered = note text

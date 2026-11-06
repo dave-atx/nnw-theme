@@ -185,6 +185,8 @@ export interface PageState {
 	collapsedImages: string[];
 	unloadedImages: string[];
 	footnotes: string[];
+	/** Problems that don't fail the case yet, such as a footnote link left a plain link. */
+	warnings?: string[];
 	enclosures: string[];
 	blocked: string[];
 	pageErrors: string[];
@@ -281,12 +283,14 @@ export interface CheckProgress {
  *
  * expectations maps a fixture name to its [expect.footnotes] table. They describe
  * the theme's own footnote handling, so they are skipped with theme scripts off.
+ * warnings, when given, receives each target's warnings by slug.
  */
 export async function checkPages(
 	site: string,
 	targets: readonly RenderTarget[],
 	progress?: CheckProgress,
 	expectations: Record<string, FootnoteExpectations> = {},
+	warnings?: Record<string, string[]>,
 ): Promise<Record<string, string[]>> {
 	const results: Record<string, string[]> = {};
 	const screenshots = join(site, "screenshots");
@@ -311,6 +315,7 @@ export async function checkPages(
 				);
 				const found = failures(state);
 				results[target.slug] = found;
+				if (warnings) warnings[target.slug] = state.warnings ?? [];
 				progress?.finish(index, target, found);
 			}
 		} finally {
@@ -366,8 +371,18 @@ async function checkPage(
 		// Last: it clicks footnotes open, so it must not disturb the screenshot.
 		const found = (await page.evaluate(
 			`(${FOOTNOTE_CHECK})(${JSON.stringify(footnotes)})`,
-		)) as string[];
-		return { ...state, enclosures, footnotes: found, blocked, pageErrors };
+		)) as {
+			failures: string[];
+			warnings: string[];
+		};
+		return {
+			...state,
+			enclosures,
+			footnotes: found.failures,
+			warnings: found.warnings,
+			blocked,
+			pageErrors,
+		};
 	} finally {
 		await context.close();
 	}
