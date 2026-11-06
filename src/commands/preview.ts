@@ -4,7 +4,7 @@ import { serve } from "../browser.ts";
 import { openInBrowser } from "../interactive.ts";
 import type { Args } from "../main.ts";
 import { findRoot, findTheme } from "../project.ts";
-import { extraFixtures, normalTargets, renderSite } from "../render.ts";
+import { renderSite, repositoryTargets } from "../render.ts";
 
 /** Whether a changed path is theme or fixture content the gallery is built from. */
 export function watched(root: string, path: string): boolean {
@@ -19,7 +19,7 @@ export function watched(root: string, path: string): boolean {
 export default async function preview({ values }: Args): Promise<void> {
 	const root = findRoot();
 	const theme = findTheme(root);
-	const build = () => renderSite(root, theme, normalTargets(extraFixtures(root)));
+	const build = () => renderSite(root, theme, repositoryTargets(root));
 	const site = build();
 	const server = await serve(site, { live: true });
 	console.log(`Preview: ${server.url}`);

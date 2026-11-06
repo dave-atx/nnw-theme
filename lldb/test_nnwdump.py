@@ -10,6 +10,16 @@ import nnwdump
 
 
 class NnwdumpTests(unittest.TestCase):
+    def test_base_url_is_recorded_only_when_it_differs_from_the_link(self) -> None:
+        pairs = [("preferred_link", "https://example.org/post/")]
+        self.assertEqual(nnwdump.base_url_pairs(pairs, "https://example.org/post/"), [])
+        self.assertEqual(
+            nnwdump.base_url_pairs(pairs, "https://example.org/"),
+            [("base_url", "https://example.org/")],
+        )
+        self.assertEqual(nnwdump.base_url_pairs(pairs, ""), [("base_url", "")])
+        self.assertEqual(nnwdump.base_url_pairs([], ""), [])
+
     def test_every_value_round_trips_through_toml(self) -> None:
         values = {
             "title": "Plain title",

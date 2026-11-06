@@ -10,6 +10,7 @@ import {
 import { extname, isAbsolute, join, relative } from "node:path";
 import { decodeHTML } from "entities";
 import { Parser } from "htmlparser2";
+import { DELIVERIES, DELIVERY_NAMES, type Delivery, deliver } from "./delivery.ts";
 import {
 	enclosuresHTML,
 	fixtureAttachments,
@@ -179,12 +180,20 @@ export class RenderTarget {
 	readonly olderNetNewsWire: boolean;
 	/** A 2x capture of the card viewport alone, for the marketplace card. */
 	readonly card: boolean;
+	/** The sync service the article arrives through, rewritten as it delivers it. */
+	readonly delivery: Delivery | undefined;
 
 	constructor(
 		fixture: string,
 		platform: Platform,
 		appearance: Appearance,
-		{ largeText = false, themeScripts = true, olderNetNewsWire = false, card = false } = {},
+		{
+			largeText = false,
+			themeScripts = true,
+			olderNetNewsWire = false,
+			card = false,
+			delivery = undefined as Delivery | undefined,
+		} = {},
 	) {
 		this.fixture = fixture;
 		this.platform = platform;
@@ -194,6 +203,7 @@ export class RenderTarget {
 		this.themeScripts = themeScripts;
 		this.olderNetNewsWire = olderNetNewsWire;
 		this.card = card;
+		this.delivery = delivery;
 	}
 
 	get ios(): boolean {
@@ -209,6 +219,7 @@ export class RenderTarget {
 		if (this.largeText) parts.push("large text");
 		if (!this.themeScripts) parts.push("Article JavaScript off");
 		if (this.olderNetNewsWire) parts.push("older NetNewsWire");
+		if (this.delivery) parts.push(`via ${DELIVERY_NAMES[this.delivery]}`);
 		if (this.card) parts.push("card");
 		return parts.join(" · ");
 	}
@@ -217,6 +228,7 @@ export class RenderTarget {
 		if (this.largeText) return "large-text";
 		if (!this.themeScripts) return "article-javascript-off";
 		if (this.olderNetNewsWire) return "older-netnewswire";
+		if (this.delivery) return `${this.fixture} via ${DELIVERY_NAMES[this.delivery]}`;
 		return this.fixture;
 	}
 
@@ -225,6 +237,7 @@ export class RenderTarget {
 		if (this.largeText) parts.push("large-text");
 		if (!this.themeScripts) parts.push("no-article-js");
 		if (this.olderNetNewsWire) parts.push("older-netnewswire");
+		if (this.delivery) parts.push(this.delivery);
 		if (this.card) parts.push("card");
 		return parts.join("-");
 	}
@@ -242,23 +255,76 @@ export function extraFixtures(root: string): string[] {
 	return extras;
 }
 
-export function normalTargets(extras: readonly string[] = []): RenderTarget[] {
+/** A fixture's deliveries = [...] key, validated: the services to also render it through. */
+export function fixtureDeliveries(fixture: Fixture, name: string): Delivery[] {
+	const value = fixture.deliveries;
+	if (value === undefined) return [];
+	if (
+		!Array.isArray(value) ||
+		!value.every((item) => DELIVERIES.includes(item as Delivery)) ||
+		new Set(value).size !== value.length
+	) {
+		throw new ThemeError(
+			`${name}: deliveries must list distinct services from ${DELIVERIES.join(", ")}`,
+		);
+	}
+	return value as Delivery[];
+}
+
+/**
+ * Each fixture's deliveries = [...], for those that list any. fixtures are the names
+ * to read: the template's own and the extras.
+ */
+export function readDeliveries(
+	root: string,
+	fixtures: readonly string[],
+): Record<string, Delivery[]> {
+	const result: Record<string, Delivery[]> = {};
+	for (const name of fixtures) {
+		const deliveries = fixtureDeliveries(
+			readFixture(fixturePath(root, name)),
+			`fixtures/${name}.toml`,
+		);
+		if (deliveries.length) result[name] = deliveries;
+	}
+	return result;
+}
+
+/** The fixtures a repository renders: the template's own, then its extras. */
+export function allFixtures(extras: readonly string[]): string[] {
+	return [...Object.keys(FIXTURE_NAMES), ...extras];
+}
+
+/**
+ * Every fixture's matrix. A fixture that lists deliveries is also rendered through
+ * each service, on Mac in light and iPhone in dark, right after its own cases.
+ */
+export function normalTargets(
+	extras: readonly string[] = [],
+	deliveries: Record<string, readonly Delivery[]> = {},
+): RenderTarget[] {
 	const targets: RenderTarget[] = [];
-	for (const fixture of Object.keys(FIXTURE_NAMES)) {
-		for (const platform of PLATFORMS) {
+	for (const fixture of allFixtures(extras)) {
+		const platforms = fixture in FIXTURE_NAMES ? PLATFORMS : EXTRA_PLATFORMS;
+		for (const platform of platforms) {
 			for (const appearance of APPEARANCES) {
 				targets.push(new RenderTarget(fixture, platform, appearance));
 			}
 		}
-	}
-	for (const fixture of extras) {
-		for (const platform of EXTRA_PLATFORMS) {
-			for (const appearance of APPEARANCES) {
-				targets.push(new RenderTarget(fixture, platform, appearance));
-			}
+		for (const delivery of deliveries[fixture] ?? []) {
+			targets.push(
+				new RenderTarget(fixture, "mac", "light", { delivery }),
+				new RenderTarget(fixture, "iphone", "dark", { delivery }),
+			);
 		}
 	}
 	return targets;
+}
+
+/** A repository's normal matrix, including each fixture's deliveries. */
+export function repositoryTargets(root: string): RenderTarget[] {
+	const extras = extraFixtures(root);
+	return normalTargets(extras, readDeliveries(root, allFixtures(extras)));
 }
 
 /**
@@ -268,10 +334,10 @@ export function normalTargets(extras: readonly string[] = []): RenderTarget[] {
  */
 export function checkTargets(
 	extras: readonly string[] = [],
-	{ enclosuresMacro = false } = {},
+	{ enclosuresMacro = false, deliveries = {} as Record<string, readonly Delivery[]> } = {},
 ): RenderTarget[] {
 	const targets = [
-		...normalTargets(extras),
+		...normalTargets(extras, deliveries),
 		new RenderTarget("kitchen-sink", "mac", "light", { largeText: true }),
 		new RenderTarget("kitchen-sink", "iphone", "light", { largeText: true }),
 		new RenderTarget("article", "mac", "light", { themeScripts: false }),
@@ -475,7 +541,8 @@ function fixtureMapping(
 	if (!mapping.dateline_style) {
 		mapping.dateline_style = mapping.title ? "articleDateline" : "articleDatelineTitle";
 	}
-	const body = mapping.body ?? "";
+	let body = mapping.body ?? "";
+	if (target.delivery) body = deliver(body, target.delivery, mapping.preferred_link ?? "");
 	mapping.body = offlineMedia(body, media);
 	// NetNewsWire before enclosure support ignores attachments and leaves the macro.
 	if (!target.olderNetNewsWire) {
@@ -561,6 +628,41 @@ function isFile(path: string): boolean {
 	}
 }
 
+/**
+ * Article.baseURL, made absolute as NetNewsWire does: no fragment, and nothing unless
+ * http or https.
+ */
+export function articleBaseURL(value: string): string {
+	let url: URL;
+	try {
+		url = new URL(value);
+	} catch {
+		return "";
+	}
+	if (url.protocol !== "http:" && url.protocol !== "https:") return "";
+	url.hash = "";
+	return url.href;
+}
+
+/**
+ * The page's base URL: the fixture's base_url when it gives one, else its link. An
+ * article synced through the Reader API (FreshRSS, Miniflux, Inoreader) has only an
+ * external link, so NetNewsWire falls back to the feed's home page: a delivered case
+ * uses feed_link, unless base_url gives the home page the service reports instead.
+ */
+function pageBaseURL(fixture: Fixture, target: RenderTarget): string {
+	const name = `fixtures/${target.fixture}.toml`;
+	const baseURL = fixture.base_url;
+	if (baseURL !== undefined && typeof baseURL !== "string") {
+		throw new ThemeError(`${name}: base_url must be a string`);
+	}
+	if (baseURL !== undefined) return articleBaseURL(baseURL);
+	if (target.delivery && typeof fixture.feed_link === "string" && fixture.feed_link) {
+		return articleBaseURL(fixture.feed_link);
+	}
+	return pyStr(fixture.preferred_link || fixture.feed_link || "");
+}
+
 export function renderPage(
 	theme: string,
 	fixture: Fixture,
@@ -598,7 +700,7 @@ export function renderPage(
 		title: fixture.title ?? "Theme preview",
 		style,
 		body,
-		baseURL: fixture.preferred_link || fixture.feed_link || "",
+		baseURL: pageBaseURL(fixture, target),
 		windowScrollY: "0",
 	});
 	page = injectScripts(page, snapshot, target.platform);
@@ -721,7 +823,16 @@ export function writeGallery(
 		SCENARIOS.map(([scenario, heading, text]) => [scenario, [heading, text]]),
 	);
 	for (const target of targets) {
-		if (!known.has(target.scenario) && !scenarios.has(target.scenario)) {
+		if (known.has(target.scenario) || scenarios.has(target.scenario)) continue;
+		if (target.delivery) {
+			const service = DELIVERY_NAMES[target.delivery];
+			scenarios.set(target.scenario, [
+				target.scenario,
+				`fixtures/${target.fixture}.toml as ${service} delivers it through the Reader ` +
+					`API: its body rewritten by ${service}'s sanitizer, and the feed's home page ` +
+					"as the page's base URL.",
+			]);
+		} else {
 			scenarios.set(target.scenario, [target.fixture, `Your fixtures/${target.fixture}.toml.`]);
 		}
 	}

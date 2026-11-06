@@ -61,13 +61,38 @@ poster at its size, and the YouTube player becomes a placeholder frame. A `media
 URL plays or shows the file from `fixtures/media/`, including audio and video for a
 screenshot; keep such files tiny, since every page that renders the fixture embeds them.
 
+## Sync services
+
+Readers who sync through a service see an article as that service hands it to
+NetNewsWire, not as the publisher wrote it. A fixture can be rendered that way too:
+
+```toml
+deliveries = ["freshrss", "miniflux"]   # also render as each service delivers it
+base_url = "https://example.org/"       # the page's base URL in every case
+```
+
+Each delivery adds two cases, Mac light and iPhone dark, with the body rewritten by
+that service's sanitizer and the feed's home page (`feed_link`, or `base_url` when
+given) as the page's base URL. That base is what NetNewsWire uses for every article synced through the Reader
+API, since those carry only an external link. FreshRSS renames every `id` and `class` to
+`data-sanitized-id` and `data-sanitized-class` and makes every link absolute,
+fragments included; NetNewsWire 7.3 restores the names for FreshRSS accounts, but
+earlier releases do not, and the delivery shows the content as they do. Miniflux strips
+`class`, keeps `id` only on links, headings, list items, and `sup`, unwraps wrappers
+such as `div.footnotes`, and marks external links `target="_blank"`. `base_url`
+replaces the base in every case, delivered or not: give it the site URL the service
+reports when that differs from the post URLs, or use it alone to reproduce a page whose
+base differs from its links without rewriting the body.
+
 ## Your own articles
 
 Prefer real articles for content a theme must handle. `npx nnw-theme@2 capture`
 prints the steps for saving the selected article from a NetNewsWire debug build with
 the `nnwdump` lldb command; it needs Xcode and a NetNewsWire clone, so the person
 usually runs it. It records the article's attachments and image as the keys above,
-not NetNewsWire's rendered enclosures, so any template previews them. Rendering swaps every image that would load over the network for a
+not NetNewsWire's rendered enclosures, so any template previews them, and records
+`base_url` when the page's base differs from the article's link, as it does for an
+article synced through the Reader API. Rendering swaps every image that would load over the network for a
 same-size placeholder and a network feed icon for a generated one; do not inline or
 fetch the originals.
 

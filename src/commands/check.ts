@@ -17,10 +17,12 @@ import {
 	themeStem,
 } from "../project.ts";
 import {
+	allFixtures,
 	checkTargets,
 	extraFixtures,
 	placesEnclosures,
 	type RenderTarget,
+	readDeliveries,
 	renderSite,
 	writeGallery,
 } from "../render.ts";
@@ -61,8 +63,10 @@ export default async function check({ values }: Args): Promise<void> {
 	const theme = findTheme(root);
 	console.log(`nnw-theme ${version()}`);
 	printWarnings(staleStubs(root));
-	const targets = checkTargets(extraFixtures(root), {
+	const extras = extraFixtures(root);
+	const targets = checkTargets(extras, {
 		enclosuresMacro: placesEnclosures(theme),
+		deliveries: readDeliveries(root, allFixtures(extras)),
 	});
 	const expected = expectations(root, targets);
 	const progress = new CheckProgress(targets.length);

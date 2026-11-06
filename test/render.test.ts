@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, test } from "node:test";
 import { ThemeError } from "../src/project.ts";
 import {
+	articleBaseURL,
 	checkTargets,
 	DEFAULT_DYNAMIC_TYPE_SIZE,
 	DEFAULT_TEXT_SIZE_CLASS,
@@ -503,5 +504,81 @@ describe("text scaling", () => {
 			assert.ok(page.includes('class="articleBody "'));
 			assert.ok(!page.includes("[[text_size_class]]"));
 		}
+	});
+});
+
+describe("base URL and deliveries", () => {
+	const snapshot = makeSnapshot(temporaryDirectory());
+	const fixture = {
+		title: "Hello",
+		feed_link_title: "Example",
+		feed_link: "https://example.org/",
+		preferred_link: "https://example.org/2026/post/",
+		body: '<p class="lede">Readable article body.<sup><a href="#fn1">1</a></sup></p>',
+	};
+	const base = (page: string) => /<base href="([^"]*)">/.exec(page)?.[1];
+	const mac = new RenderTarget("sync", "mac", "light");
+
+	test("the page's base is the fixture's link unless base_url replaces it", () => {
+		assert.equal(base(renderPage(STARTER, fixture, mac, snapshot)), fixture.preferred_link);
+		const page = renderPage(
+			STARTER,
+			{ ...fixture, base_url: "https://example.org/home/#top" },
+			mac,
+			snapshot,
+		);
+		assert.equal(base(page), "https://example.org/home/");
+		assert.throws(
+			() => renderPage(STARTER, { ...fixture, base_url: 1 }, mac, snapshot),
+			ThemeError,
+		);
+	});
+
+	test("base URLs follow Article.baseURL: no fragment, only http and https", () => {
+		assert.equal(articleBaseURL("https://example.org/a#b"), "https://example.org/a");
+		assert.equal(articleBaseURL("http://example.org"), "http://example.org/");
+		assert.equal(articleBaseURL("ftp://example.org/"), "");
+		assert.equal(articleBaseURL("not a url"), "");
+	});
+
+	test("a delivered article is rewritten and based on the feed's home page", () => {
+		const target = new RenderTarget("sync", "mac", "light", { delivery: "freshrss" });
+		const page = renderPage(STARTER, fixture, target, snapshot);
+		assert.equal(base(page), "https://example.org/");
+		assert.ok(page.includes('<p data-sanitized-class="lede">'));
+		assert.ok(page.includes('<a href="https://example.org/2026/post/#fn1">'));
+		assert.ok(renderPage(STARTER, fixture, mac, snapshot).includes('<p class="lede">'));
+		// The home page a sync service reports can differ from the feed's own.
+		const reported = { ...fixture, base_url: "https://www.example.org/" };
+		assert.equal(
+			base(renderPage(STARTER, reported, target, snapshot)),
+			"https://www.example.org/",
+		);
+	});
+
+	test("each delivery adds Mac light and iPhone dark cases after its fixture", () => {
+		const targets = normalTargets(["sync"], { sync: ["freshrss", "miniflux"] });
+		const delivered = targets.filter((target) => target.delivery);
+		assert.deepEqual(
+			delivered.map((target) => target.slug),
+			[
+				"sync-mac-light-freshrss",
+				"sync-iphone-dark-freshrss",
+				"sync-mac-light-miniflux",
+				"sync-iphone-dark-miniflux",
+			],
+		);
+		assert.equal(delivered[0]?.label, "sync · Mac · light · via FreshRSS");
+		assert.equal(delivered[0]?.scenario, "sync via FreshRSS");
+		assert.equal(targets.indexOf(delivered[0] as RenderTarget), 16);
+		assert.equal(checkTargets(["sync"], { deliveries: { sync: ["miniflux"] } }).length, 22);
+	});
+
+	test("delivered cases get their own gallery section", () => {
+		const site = temporaryDirectory();
+		writeGallery(site, "Quiet Reader", normalTargets(["sync"], { sync: ["miniflux"] }));
+		const gallery = readFileSync(join(site, "index.html"), "utf8");
+		assert.deepEqual(headings(gallery).slice(-2), ["sync", "sync via Miniflux"]);
+		assert.ok(gallery.includes("Miniflux delivers it through the Reader API"));
 	});
 });

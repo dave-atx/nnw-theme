@@ -8,7 +8,9 @@ NetNewsWire with enclosure support renders an article's enclosures into that
 dictionary: as `enclosures`, or appended to a wrapped `body` when the template has no
 [[enclosures]] macro. nnwdump keeps neither. It records the article's attachments
 and image instead, as [[attachments]] tables and image_url/thumbnail_url, so nnw-theme
-renders them for whichever template previews the fixture.
+renders them for whichever template previews the fixture. When the page's base URL
+differs from the article's link, as for an article synced through the Reader API, it
+also records base_url.
 
 Values cross the debugger boundary base64-encoded, so nothing is truncated or
 mis-escaped. HTML values are written as '''literal''' strings, so fixtures stay
@@ -103,6 +105,12 @@ def attachments_from_json(text: str) -> list[dict]:
     return tables
 
 
+def base_url_pairs(pairs: list[tuple[str, str]], base_url: str) -> list[tuple[str, str]]:
+    """base_url, when the rendered page's base differs from preferred_link."""
+    preferred = dict(pairs).get("preferred_link", "")
+    return [] if base_url == preferred else [("base_url", base_url)]
+
+
 def _toml_value_line(key: str, value) -> str:
     if isinstance(value, bool) or not isinstance(value, int):
         return toml_line(key, str(value))
@@ -194,6 +202,10 @@ def nnwdump(debugger, command, result, internal_dict):
         value, _ = _evaluate(interpreter, f'{options.article}.{link} ?? ""')
         if value:
             pairs.append((key, value))
+    # The renderer's own base: the article's link, else the feed's home page.
+    base_url, _ = _evaluate(interpreter, 'self.baseURL?.absoluteString ?? ""')
+    if base_url is not None:
+        pairs.extend(base_url_pairs(pairs, base_url))
 
     note = ""
     if attachments:
