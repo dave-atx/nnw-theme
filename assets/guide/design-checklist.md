@@ -16,6 +16,10 @@ prescribed aesthetic.
 - Check JavaScript-off macOS and iPhone renders for readable content and usable links.
 - If the theme styles enclosures, check the `podcast` and `media-rss` fixtures: players,
   captions, and the article image leading a podcast episode, in light and dark.
+- If the theme script handles footnotes or relies on classes or ids, give a fixture
+  `deliveries = ["freshrss", "miniflux"]` and check the cases synced readers see.
+- Check an untitled article, such as the `mastodon` fixture: the dateline stands in for
+  the headline, and inline 16x16 custom emoji must stay inline beside the text.
 - Inspect a real WebKit screenshot, not only the live gallery or Chromium fallback.
 - Promote `screenshots/theme-preview.png` only when the 16:10 macOS article image is
   an intentional representation of the release.

@@ -1,5 +1,5 @@
-// Footnote checks, evaluated in each rendered page after its screenshot. Returns a
-// list of failure messages. NetNewsWire's newsfoot.js opens a popover for any
+// Footnote checks, evaluated in each rendered page after its screenshot. Returns
+// {failures, warnings}, each a list of messages. NetNewsWire's newsfoot.js opens a popover for any
 // a.footnote whose hash names an element; main.js adds that class to local
 // sup > a[href*='#fn'] links and Substack's a[id^='footnote-anchor-'] links, and a
 // theme script may add it to other formats.
@@ -7,11 +7,13 @@
 // expect is the fixture's [expect.footnotes] table: notes maps each marker's text to
 // its note text, plain_links lists selectors for links that are not footnotes, and
 // keep_with_word requires a marker written against its word to stay on its line.
-async ({notes = null, plain_links = [], keep_with_word = false} = {}) => {
+// all_converted makes an unconverted marker a failure rather than a warning.
+async ({notes = null, plain_links = [], keep_with_word = false, all_converted = false} = {}) => {
 	const failures = [];
+	const warnings = [];
 	const fail = message => failures.push(message);
 	const article = document.querySelector(".articleBody");
-	if (!article) return failures;
+	if (!article) return {failures, warnings};
 	const text = element => element.textContent.replace(/\s+/g, " ").trim();
 	const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -19,11 +21,42 @@ async ({notes = null, plain_links = [], keep_with_word = false} = {}) => {
 	const markers = [...article.querySelectorAll("a.footnote")]
 		.filter(marker => marker.getClientRects().length);
 	const label = marker => text(marker) || marker.getAttribute("href");
+	const fragment = link => {
+		try {
+			return link.hash ? decodeURIComponent(link.hash.slice(1)) : "";
+		} catch {
+			return "";
+		}
+	};
+
+	// A reference in a shape main.js or a theme converts, linking to an element in the
+	// article, that never became a marker: NetNewsWire opens it as a link. It happens
+	// when the page's base URL doesn't match the link, as for an article synced through
+	// the Reader API, or when a sync service rewrote the markup a theme script expects.
+	const plain = new Set();
+	for (const selector of plain_links) {
+		try {
+			for (const link of document.querySelectorAll(selector)) plain.add(link);
+		} catch {
+			// Reported below.
+		}
+	}
+	const references = article.querySelectorAll(
+		"sup > a[href], sup > div > a[href], a[id^='footnote-anchor-'][href]");
+	for (const link of references) {
+		if (link.matches(".footnote") || plain.has(link) || !link.getClientRects().length) continue;
+		const id = fragment(link);
+		const target = id && document.getElementById(id);
+		if (!target || !article.contains(target) || target.contains(link)) continue;
+		const message = `footnote ${label(link)}: ${link.getAttribute("href")} links to a note ` +
+			"but never became an a.footnote marker, so NetNewsWire opens it as a link";
+		(all_converted ? failures : warnings).push(message);
+	}
 
 	// Every marker resolves, as newsfoot does, to one non-empty note.
 	const noteFor = new Map();
 	for (const marker of markers) {
-		const id = marker.hash ? decodeURIComponent(marker.hash.slice(1)) : "";
+		const id = fragment(marker);
 		const target = id && document.getElementById(id);
 		if (!target) {
 			fail(`footnote ${label(marker)}: ${marker.getAttribute("href")} names no note`);
@@ -179,5 +212,5 @@ async ({notes = null, plain_links = [], keep_with_word = false} = {}) => {
 		document.body.dispatchEvent(new MouseEvent("click", {bubbles: true, cancelable: true, view: window}));
 		await pause(30);
 	}
-	return failures;
+	return {failures, warnings};
 }

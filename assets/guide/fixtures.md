@@ -24,7 +24,7 @@ npx nnw-theme@2 fixture add wordpress --force    # replace a copy with the curre
 
 Each is copied into `fixtures/` and is from then on an ordinary fixture of the
 repository, checked on macOS and iPhone in light and dark: four more renders per
-fixture in every `check`, twenty-four for all six. Their structure, classes, and attributes
+fixture in every `check`, twenty-eight for all seven. Their structure, classes, and attributes
 come from real feeds; their text is synthetic and their links point at `example.org`.
 The copy never changes on its own when `nnw-theme` updates. A header comment records
 its catalog version, and `fixture list` says when a newer one is available; take it
@@ -61,13 +61,38 @@ poster at its size, and the YouTube player becomes a placeholder frame. A `media
 URL plays or shows the file from `fixtures/media/`, including audio and video for a
 screenshot; keep such files tiny, since every page that renders the fixture embeds them.
 
+## Sync services
+
+Readers who sync through a service see an article as that service hands it to
+NetNewsWire, not as the publisher wrote it. A fixture can be rendered that way too:
+
+```toml
+deliveries = ["freshrss", "miniflux"]   # also render as each service delivers it
+base_url = "https://example.org/"       # the page's base URL in every case
+```
+
+Each delivery adds two cases, Mac light and iPhone dark, with the body rewritten by
+that service's sanitizer and the feed's home page (`feed_link`, or `base_url` when
+given) as the page's base URL. That base is what NetNewsWire uses for every article synced through the Reader
+API, since those carry only an external link. FreshRSS renames every `id` and `class` to
+`data-sanitized-id` and `data-sanitized-class` and makes every link absolute,
+fragments included; NetNewsWire 7.3 restores the names for FreshRSS accounts, but
+earlier releases do not, and the delivery shows the content as they do. Miniflux strips
+`class`, keeps `id` only on links, headings, list items, and `sup`, unwraps wrappers
+such as `div.footnotes`, and marks external links `target="_blank"`. `base_url`
+replaces the base in every case, delivered or not: give it the site URL the service
+reports when that differs from the post URLs, or use it alone to reproduce a page whose
+base differs from its links without rewriting the body.
+
 ## Your own articles
 
 Prefer real articles for content a theme must handle. `npx nnw-theme@2 capture`
 prints the steps for saving the selected article from a NetNewsWire debug build with
 the `nnwdump` lldb command; it needs Xcode and a NetNewsWire clone, so the person
 usually runs it. It records the article's attachments and image as the keys above,
-not NetNewsWire's rendered enclosures, so any template previews them. Rendering swaps every image that would load over the network for a
+not NetNewsWire's rendered enclosures, so any template previews them, and records
+`base_url` when the page's base differs from the article's link, as it does for an
+article synced through the Reader API. Rendering swaps every image that would load over the network for a
 same-size placeholder and a network feed icon for a generated one; do not inline or
 fetch the originals.
 
@@ -79,15 +104,21 @@ each is copied into every page that renders the fixture.
 
 Footnote markers are the links NetNewsWire's `newsfoot.js` handles: `a.footnote`.
 Its `main.js` adds that class to local `sup > a[href*='#fn']` links and to Substack's
-`a[id^='footnote-anchor-']` links; a theme script may add it to other formats. `check` requires every visible marker to resolve to a
+`a[id^='footnote-anchor-']` links, where local means the link starts with the page's
+base URL; a theme script may add it to other formats. `check` requires every visible marker to resolve to a
 non-empty note with a unique id, stay legible on its background, match the other
 markers' height, font size, and baseline offset, and open a popover with its note
-without resizing. A fixture may declare exact expectations after its other keys:
+without resizing. A `sup > a` or Substack anchor whose fragment names an element in
+the article but that never became a marker is opened as a link instead: `check` warns
+about one, and fails it in a fixture with `base_url` or `deliveries`, or with
+`all_converted = true`. List a link that really is ordinary in `plain_links`.
+A fixture may declare exact expectations after its other keys:
 
 ```toml
 [expect.footnotes]
 plain_links = ["#ordinary-sup-link"]   # CSS selectors that must not become markers
 keep_with_word = true                  # markers must not wrap apart from their word
+all_converted = true                   # fail, not warn, on footnote links left plain
 
 [expect.footnotes.notes]
 "1" = "First note."                    # marker text as rendered = note text

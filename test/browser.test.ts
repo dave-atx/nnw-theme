@@ -210,6 +210,35 @@ figure img { display: block; margin: 0 -48px; width: calc(100% + 96px); }</style
 		assert.deepEqual(results["substack-mac-light"], []);
 	});
 
+	test("a footnote link left a plain link warns, or fails with all_converted", async () => {
+		// The feed's home page is on another host, so main.js doesn't see the post's own
+		// absolute footnote link as local, as for an article synced through the Reader API.
+		const fixture =
+			'title = "Notes"\nbase_url = "https://blog.example.org/"\nbody = \'\'\'<p>Readable ' +
+			"article text that is comfortably longer than forty characters.<sup>" +
+			'<a href="https://example.org/post/#fn1">1</a></sup></p><ol><li id="fn1">The note. ' +
+			"<sup><a href=\"#nothing\">x</a></sup></li></ol>'''\n";
+		const root = temporaryDirectory();
+		writeFiles(root, { "fixtures/notes.toml": fixture });
+		const targets = [new RenderTarget("notes", "mac", "light")];
+		const site = renderSite(root, STARTER, targets);
+		const message =
+			"footnote 1: https://example.org/post/#fn1 links to a note but never became an " +
+			"a.footnote marker, so NetNewsWire opens it as a link";
+		const warned: Record<string, string[]> = {};
+		const results = await checkPages(site, targets, undefined, {}, warned);
+		assert.deepEqual(results["notes-mac-light"], []);
+		assert.deepEqual(warned["notes-mac-light"], [message]);
+		const strict = await checkPages(site, targets, undefined, {
+			notes: { all_converted: true },
+		});
+		assert.deepEqual(strict["notes-mac-light"], [message]);
+		const plain = await checkPages(site, targets, undefined, {
+			notes: { all_converted: true, plain_links: ["sup > a[href$='#fn1']"] },
+		});
+		assert.deepEqual(plain["notes-mac-light"], []);
+	});
+
 	test("a card shows a fixture's own image at 2x on iPad", async () => {
 		const root = temporaryDirectory();
 		const png =

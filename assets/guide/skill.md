@@ -20,8 +20,8 @@ specific reading needs. Prefer changing the CSS variables and rules in
 needs it. For format constraints and macro behavior, read the `theme-format` topic.
 To preview content the built-in articles lack, such as a real feed's markup or
 footnotes, add a fixture as the `fixtures` topic describes; `npx nnw-theme@2 fixture
-list` offers ready-made ones modeled on WordPress, Ghost, Substack, and Medium, plus
-podcast and Media RSS enclosures.
+list` offers ready-made ones modeled on WordPress, Ghost, Substack, Medium, and
+Mastodon, plus podcast and Media RSS enclosures.
 
 Iterate with this loop:
 

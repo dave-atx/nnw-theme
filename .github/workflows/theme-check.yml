@@ -21,6 +21,7 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-26.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       # A reusable workflow's `uses: ./…` resolves in the caller's repository, so the

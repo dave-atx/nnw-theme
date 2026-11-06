@@ -4,12 +4,12 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { fixtureHint } from "../src/commands/check.ts";
+import { expectations, fixtureHint } from "../src/commands/check.ts";
 import { absoluteHomepage, defaultIdentifier } from "../src/commands/init.ts";
 import { CheckProgress } from "../src/commands/progress.ts";
 import { archiveBytes } from "../src/package.ts";
 import { buildPlist, type PlistDict } from "../src/plist.ts";
-import { normalTargets } from "../src/render.ts";
+import { normalTargets, RenderTarget } from "../src/render.ts";
 import { readMarker, STUBS, staleStubs } from "../src/stubs.ts";
 import { temporaryDirectory, writeFiles } from "./helpers.ts";
 
@@ -206,7 +206,10 @@ describe("fixture", () => {
 		assert.match(missing.stderr, /required: names/);
 		const unknown = run(root, "fixture", "add", "blogger");
 		assert.equal(unknown.status, 2);
-		assert.match(unknown.stderr, /invalid choice: 'blogger' \(choose from 'ghost', 'medium'/);
+		assert.match(
+			unknown.stderr,
+			/invalid choice: 'blogger' \(choose from 'ghost', 'mastodon', 'medium'/,
+		);
 		const outside = run(temporaryDirectory(), "fixture", "add", "ghost");
 		assert.match(outside.stderr, /inside the theme repository/);
 	});
@@ -387,5 +390,26 @@ describe("check output", () => {
 		assert.ok(stream.text.includes("\r\x1b[K✗ Article · Mac · dark: page errors\n"));
 		assert.ok(stream.text.endsWith("\r\x1b[K"));
 		assert.equal(stream.text.split("\n").length - 1, 1);
+	});
+});
+
+describe("check expectations", () => {
+	test("fixtures that model a sync service fail unconverted footnotes by default", () => {
+		const root = temporaryDirectory();
+		writeFiles(root, {
+			"fixtures/plain.toml": 'title = "P"\n',
+			"fixtures/based.toml": 'base_url = "https://example.org/"\n',
+			"fixtures/synced.toml": 'deliveries = ["miniflux"]\n',
+			"fixtures/relaxed.toml":
+				'deliveries = ["freshrss"]\n[expect.footnotes]\nall_converted = false\n',
+			"fixtures/strict.toml": "[expect.footnotes]\nall_converted = true\n",
+		});
+		const names = ["plain", "based", "synced", "relaxed", "strict"];
+		const targets = names.map((name) => new RenderTarget(name, "mac", "light"));
+		const found = expectations(root, targets);
+		assert.deepEqual(
+			names.map((name) => found[name]?.all_converted),
+			[false, true, true, false, true],
+		);
 	});
 });

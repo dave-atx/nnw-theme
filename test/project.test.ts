@@ -29,6 +29,8 @@ describe("footnote expectations", () => {
 		assert.deepEqual({ ...expected.notes }, { a: "Second.", 1: "First." });
 		assert.deepEqual(expected.plain_links, ["#ordinary"]);
 		assert.equal(expected.keep_with_word, true);
+		assert.equal(expected.all_converted, undefined);
+		assert.equal(expectations("[expect.footnotes]\nall_converted = true").all_converted, true);
 	});
 
 	test("typos and wrong types are errors", () => {
@@ -39,6 +41,7 @@ describe("footnote expectations", () => {
 			['[expect.footnotes]\nnotes = {"1" = 1}', /map markers to text/],
 			['[expect.footnotes]\nplain_links = "#a"', /CSS selectors/],
 			['[expect.footnotes]\nkeep_with_word = "yes"', /true or false/],
+			["[expect.footnotes]\nall_converted = 1", /all_converted must be true or false/],
 		] as const) {
 			assert.throws(
 				() => expectations(text),

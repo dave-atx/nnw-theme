@@ -14,6 +14,7 @@ jobs:
       github.event.workflow_run.head_branch == github.event.repository.default_branch &&
       github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-26.04
+    timeout-minutes: 20
     outputs:
       workflow: ${{ steps.source.outputs.workflow }}
     steps:
@@ -39,6 +40,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-26.04
+    timeout-minutes: 20
     steps:
       # Reuses the gallery the passing check rendered; no second render gate.
       - name: Download the checked preview gallery

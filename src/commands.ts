@@ -1,6 +1,8 @@
 // The one description of the command line: the parser, help, and shell completion
 // are all generated from it, so they cannot drift apart.
 
+import { DELIVERIES } from "./delivery.ts";
+
 export interface OptionSpec {
 	name: string;
 	type: "string" | "boolean";
@@ -51,6 +53,7 @@ export const BUILT_IN_FIXTURE_NAMES = ["article", "kitchen-sink"] as const;
  */
 export const CATALOG_FIXTURES = {
 	ghost: "Ghost cards, galleries, and lazy images",
+	mastodon: "Mastodon post: mentions, hashtags, custom emoji, image enclosures",
 	medium: "Medium figures, unsized images, and footer",
 	"media-rss": "Image, video, and YouTube enclosures with captions",
 	podcast: "Podcast audio enclosure and episode artwork",
@@ -153,7 +156,7 @@ export const COMMANDS: readonly CommandSpec[] = [
 		summary: "check one case in WebKit and save its image",
 		description:
 			"Render and check a single case in WebKit and save its full-page screenshot: any " +
-			"fixture, on any platform. With --card, capture an 800x552 viewport at 2x, the " +
+			"fixture, on any platform, directly or --delivery through a sync service. With --card, capture an 800x552 viewport at 2x, the " +
 			"shape of the marketplace card. With --promote, it becomes " +
 			"screenshots/theme-preview.png, the marketplace card.",
 		options: [
@@ -166,6 +169,12 @@ export const COMMANDS: readonly CommandSpec[] = [
 			},
 			{ name: "platform", type: "string", choices: ["mac", "iphone", "ipad"], default: "mac" },
 			{ name: "appearance", type: "string", choices: ["light", "dark"], default: "light" },
+			{
+				name: "delivery",
+				type: "string",
+				choices: DELIVERIES,
+				help: "render the fixture as this sync service delivers it",
+			},
 			{ name: "card", type: "boolean", help: "capture the marketplace card's shape at 2x" },
 			{ name: "promote", type: "boolean", help: "use it as the marketplace screenshot" },
 		],
@@ -177,7 +186,7 @@ export const COMMANDS: readonly CommandSpec[] = [
 	},
 	{
 		name: "fixture",
-		summary: "add fixtures modeled on WordPress, Ghost, Substack, and Medium",
+		summary: "add fixtures modeled on WordPress, Ghost, Substack, Medium, and Mastodon",
 		description:
 			"Copy ready-made fixtures with markup modeled on what major publishing platforms " +
 			"send into fixtures/, where preview and check pick them up. Each one adds four " +
