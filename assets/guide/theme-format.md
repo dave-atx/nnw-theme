@@ -12,6 +12,12 @@ images, media, or references to them. Small demonstrated assets may use data URL
 including spaces and capitalization. `CreatorHomePage` is an absolute HTTP(S) URL.
 The identifier and bundle name stay stable after the first release.
 
+Two optional string keys fill in Finder's Get Info window, and NetNewsWire ignores
+both. `CFBundleGetInfoString` is the Version row; a theme's flat layout can't use
+`CFBundleShortVersionString`, which Finder doesn't read there.
+`NSHumanReadableCopyright` is the Copyright row. `init` writes both, and `bump` keeps
+the version current.
+
 NetNewsWire performs two single-pass substitutions. First, article values replace
 macros in `template.html`; then that body and combined core/theme CSS enter a platform
 page skeleton. Unknown macros remain literal, and substituted values are not scanned

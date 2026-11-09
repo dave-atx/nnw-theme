@@ -175,6 +175,8 @@ export default async function init({ values }: Args): Promise<void> {
 		CreatorHomePage: homepage,
 		CreatorName: creator,
 		Version: 1,
+		CFBundleGetInfoString: "1.0.0",
+		NSHumanReadableCopyright: `Copyright © ${new Date().getFullYear()} ${creator}`,
 	});
 	if (destination !== theme) {
 		renameSync(theme, destination);
