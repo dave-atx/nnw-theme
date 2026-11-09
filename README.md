@@ -37,7 +37,7 @@ version, name it: `npx nnw-theme@2.0.0 check`.
 | `package` | Validate and build `dist/<Name>.nnwtheme.zip` |
 | `fixture list` / `fixture add <name>…` | Add ready-made fixtures modeled on WordPress, Ghost, Substack, Medium, and Mastodon markup, and on podcast and Media RSS enclosures |
 | `capture` | Explain how to capture a real article from NetNewsWire as a fixture |
-| `bump` | Increase the `Info.plist` `Version` before a release |
+| `bump` | Increase the `Info.plist` `Version`, and the version Finder's Get Info shows, before a release; `--get-info-version` sets that one |
 | `marketplace enable` | Add the marketplace discovery topic on GitHub |
 | `guide [topic]` | Print the authoring guide: `skill`, `theme-format`, `fixtures`, `design-checklist`, `publishing` |
 | `completion <shell>` | Print shell completion for `fish`, `zsh`, or `bash` |

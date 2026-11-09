@@ -8,7 +8,7 @@ import { expectations, fixtureHint } from "../src/commands/check.ts";
 import { absoluteHomepage, defaultIdentifier } from "../src/commands/init.ts";
 import { CheckProgress } from "../src/commands/progress.ts";
 import { archiveBytes } from "../src/package.ts";
-import { buildPlist, type PlistDict } from "../src/plist.ts";
+import { buildPlist, type PlistDict, parsePlist } from "../src/plist.ts";
 import { normalTargets, RenderTarget } from "../src/render.ts";
 import { readMarker, STUBS, staleStubs } from "../src/stubs.ts";
 import { temporaryDirectory, writeFiles } from "./helpers.ts";
@@ -107,6 +107,8 @@ describe("init", () => {
 					ThemeIdentifier: "io.github.theme-author.quiet-reader",
 					Name: "Quiet Reader",
 					CreatorHomePage: "https://github.com/theme-author",
+					CFBundleGetInfoString: "1.0.0",
+					NSHumanReadableCopyright: `Copyright © ${new Date().getFullYear()} Theme Author`,
 				}),
 			),
 		);
@@ -151,7 +153,7 @@ describe("init", () => {
 });
 
 /** An initialized theme repository with a valid bundle. */
-function theme(version = 1): string {
+function theme(version = 1, extra: PlistDict = {}): string {
 	const root = temporaryDirectory();
 	writeFiles(root, {
 		"Reader.nnwtheme/Info.plist": buildPlist({
@@ -160,6 +162,7 @@ function theme(version = 1): string {
 			CreatorHomePage: "https://reader.test",
 			CreatorName: "A. Reader",
 			Version: version,
+			...extra,
 		}),
 		"Reader.nnwtheme/template.html": '<div class="articleBody">[[body]]</div>',
 		"Reader.nnwtheme/stylesheet.css": "body {}",
@@ -241,6 +244,8 @@ describe("fixture", () => {
 });
 
 describe("bump and release-check", () => {
+	const infoPlist = (root: string) => join(root, "Reader.nnwtheme", "Info.plist");
+
 	test("bump increases Version, and needs --yes without a terminal", () => {
 		const root = theme(4);
 		assert.match(run(root, "bump").stderr, /pass --yes/);
@@ -250,6 +255,53 @@ describe("bump and release-check", () => {
 			readFileSync(join(root, "Reader.nnwtheme", "Info.plist"), "utf8"),
 			/<integer>5<\/integer>/,
 		);
+	});
+
+	test("bump increases the Get Info version's last number and keeps the copyright", () => {
+		const copyright = "Copyright © 2026 A. Reader";
+		const root = theme(20, {
+			CFBundleGetInfoString: "2.9",
+			NSHumanReadableCopyright: copyright,
+		});
+		const result = run(root, "bump", "--yes");
+		assert.equal(
+			result.stdout,
+			"Version is now 21. Get Info version is now 2.10. Commit this change before publishing.\n",
+		);
+		assert.deepEqual(parsePlist(readFileSync(infoPlist(root), "utf8")), {
+			ThemeIdentifier: "org.test.reader",
+			Name: "Reader",
+			CreatorHomePage: "https://reader.test",
+			CreatorName: "A. Reader",
+			Version: 21,
+			CFBundleGetInfoString: "2.10",
+			NSHumanReadableCopyright: copyright,
+		});
+	});
+
+	test("bump keeps a Get Info version's zero padding", () => {
+		const root = theme(1, { CFBundleGetInfoString: "2026.01" });
+		run(root, "bump", "--yes");
+		assert.match(readFileSync(infoPlist(root), "utf8"), /<string>2026\.02<\/string>/);
+	});
+
+	test("--get-info-version sets the Get Info version, adding it if absent", () => {
+		const root = theme(1);
+		const result = run(root, "bump", "--yes", "--get-info-version", "3.0");
+		assert.equal(result.status, 0, result.stderr);
+		assert.match(
+			readFileSync(infoPlist(root), "utf8"),
+			/<key>CFBundleGetInfoString<\/key>\n\t<string>3\.0<\/string>/,
+		);
+	});
+
+	test("bump changes nothing when it can't increase the Get Info version", () => {
+		const root = theme(4, { CFBundleGetInfoString: "2.0 beta" });
+		const before = readFileSync(infoPlist(root), "utf8");
+		const result = run(root, "bump", "--yes");
+		assert.equal(result.status, 1);
+		assert.match(result.stderr, /must end in a number.*--get-info-version/);
+		assert.equal(readFileSync(infoPlist(root), "utf8"), before);
 	});
 
 	test("release-check compares identity and Version with the previous release", () => {

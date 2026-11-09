@@ -230,7 +230,17 @@ export const COMMANDS: readonly CommandSpec[] = [
 	{
 		name: "bump",
 		summary: "increase the Info.plist Version before a release",
-		options: [{ name: "yes", type: "boolean", help: "skip the confirmation" }],
+		description:
+			"Increase the integer Version NetNewsWire compares, and the last number of the " +
+			"version Finder's Get Info shows when the theme has one.",
+		options: [
+			{ name: "yes", type: "boolean", help: "skip the confirmation" },
+			{
+				name: "get-info-version",
+				type: "string",
+				help: "set the Get Info version to this instead of increasing it",
+			},
+		],
 	},
 	{
 		name: "marketplace",

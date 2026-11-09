@@ -9,6 +9,11 @@ after the first release. Release tags may use any valid Git ref beginning with `
 semantic tags such as `v1.0.0` are the suggested default and are independent of the
 plist version.
 
+`bump` also increases the last number of the version Finder's Get Info shows, the
+plist's `CFBundleGetInfoString`, when the theme has one. For any other change, such
+as a new major version, pass `--get-info-version 2.0.0`; that also adds the key to a
+theme without one. Keeping it in step with the tag is up to you.
+
 Publishing is manual: use **Actions → Publish theme → Run workflow** or an equivalent
 explicitly authorized GitHub CLI action. Tag pushes do not publish. The workflow uses
 the current default-branch HEAD, refuses an existing tag/release, compares identity
