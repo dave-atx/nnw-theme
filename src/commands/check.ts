@@ -1,4 +1,4 @@
-import { writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { checkPages } from "../browser.ts";
@@ -12,7 +12,9 @@ import {
 	fixturePath,
 	footnoteExpectations,
 	readFixture,
+	readPlist,
 	repositoryFixtures,
+	TEMPLATE_7_3_FILE,
 	ThemeError,
 	themeStem,
 } from "../project.ts";
@@ -56,6 +58,32 @@ export function fixtureHint(root: string): string | undefined {
 	return (
 		"Hint: this theme has no fixtures of its own. `npx nnw-theme@2 fixture list` " +
 		"shows ready-made ones modeled on WordPress, Ghost, Substack, Medium, and Mastodon markup."
+	);
+}
+
+/** A one-line pointer to NetNewsWire 7.3's media macros, for a theme that doesn't place them. */
+export function mediaHint(theme: string): string | undefined {
+	const newer = join(theme, TEMPLATE_7_3_FILE);
+	const template = readFileSync(
+		existsSync(newer) ? newer : join(theme, "template.html"),
+		"utf8",
+	);
+	const missing = ["primary_media", "enclosures"].filter(
+		(macro) => !template.includes(`[[${macro}]]`),
+	);
+	if (!missing.length) return undefined;
+	return (
+		`Hint: this theme doesn't place NetNewsWire 7.3's ${missing.join(" or ")}. ` +
+		"`npx nnw-theme@2 guide theme-format` explains adding them in a template7.3.html."
+	);
+}
+
+/** A one-line pointer to bump, for a theme whose Get Info window shows no version. */
+export function getInfoHint(theme: string): string | undefined {
+	if (readPlist(theme).CFBundleGetInfoString !== undefined) return undefined;
+	return (
+		"Hint: Finder's Get Info shows no version for this theme. " +
+		"At your next release, `npx nnw-theme@2 bump --get-info-version 1.0.0` adds one."
 	);
 }
 
@@ -115,8 +143,9 @@ export default async function check({ values }: Args): Promise<void> {
 		);
 		console.log(`PASS: ${targets.length} WebKit renders and ${packageName}`);
 	}
-	const hint = fixtureHint(root);
-	if (hint) console.log(hint);
+	for (const hint of [fixtureHint(root), mediaHint(theme), getInfoHint(theme)]) {
+		if (hint) console.log(hint);
+	}
 	const index = join(site, "index.html");
 	console.log(`Preview: ${index}`);
 	await offerToOpen(index, values.open as boolean | undefined);
