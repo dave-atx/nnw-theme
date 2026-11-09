@@ -4,7 +4,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { expectations, fixtureHint } from "../src/commands/check.ts";
+import { expectations, fixtureHint, getInfoHint, mediaHint } from "../src/commands/check.ts";
 import { absoluteHomepage, defaultIdentifier } from "../src/commands/init.ts";
 import { CheckProgress } from "../src/commands/progress.ts";
 import { archiveBytes } from "../src/package.ts";
@@ -235,6 +235,25 @@ describe("fixture", () => {
 		assert.match(run(temporaryDirectory(), "fixture", "list").stdout, /^ghost +Ghost/);
 	});
 
+	test("check hints at the 7.3 media macros a theme doesn't place", () => {
+		const root = theme();
+		const bundle = join(root, "Reader.nnwtheme");
+		assert.match(mediaHint(bundle) ?? "", /7\.3's primary_media or enclosures\. /);
+		writeFiles(root, {
+			"Reader.nnwtheme/template.html": "[[enclosures]] [[body]]",
+		});
+		assert.match(mediaHint(bundle) ?? "", /7\.3's primary_media\. /);
+		writeFiles(root, {
+			"Reader.nnwtheme/template.html": "[[primary_media]] [[enclosures]]",
+		});
+		assert.equal(mediaHint(bundle), undefined);
+		writeFiles(root, {
+			"Reader.nnwtheme/template.html": "[[body]]",
+			"Reader.nnwtheme/template7.3.html": "[[primary_media]] [[body]] [[enclosures]]",
+		});
+		assert.equal(mediaHint(bundle), undefined);
+	});
+
 	test("check hints at the catalog only when the theme has no fixtures", () => {
 		const root = theme();
 		assert.match(fixtureHint(root) ?? "", /fixture list/);
@@ -250,11 +269,24 @@ describe("bump and release-check", () => {
 		const root = theme(4);
 		assert.match(run(root, "bump").stderr, /pass --yes/);
 		const result = run(root, "bump", "--yes");
-		assert.equal(result.stdout, "Version is now 5. Commit this change before publishing.\n");
-		assert.match(
-			readFileSync(join(root, "Reader.nnwtheme", "Info.plist"), "utf8"),
-			/<integer>5<\/integer>/,
+		const copyright = `Copyright © ${new Date().getFullYear()} A. Reader`;
+		assert.equal(
+			result.stdout,
+			`Version is now 5. Added "${copyright}" for Get Info. Commit this change before publishing.\n`,
 		);
+		const plist = readFileSync(infoPlist(root), "utf8");
+		assert.match(plist, /<integer>5<\/integer>/);
+		assert.ok(plist.includes(`<string>${copyright}</string>`));
+		assert.ok(!plist.includes("CFBundleGetInfoString"));
+	});
+
+	test("check hints at a missing Get Info version", () => {
+		assert.match(
+			getInfoHint(join(theme(), "Reader.nnwtheme")) ?? "",
+			/bump --get-info-version/,
+		);
+		const root = theme(1, { CFBundleGetInfoString: "1.0" });
+		assert.equal(getInfoHint(join(root, "Reader.nnwtheme")), undefined);
 	});
 
 	test("bump increases the Get Info version's last number and keeps the copyright", () => {

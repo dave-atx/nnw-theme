@@ -12,7 +12,9 @@ plist version.
 `bump` also increases the last number of the version Finder's Get Info shows, the
 plist's `CFBundleGetInfoString`, when the theme has one. For any other change, such
 as a new major version, pass `--get-info-version 2.0.0`; that also adds the key to a
-theme without one. Keeping it in step with the tag is up to you.
+theme without one, and `check` hints when it's missing. Keeping it in step with the
+tag is up to you. `bump` also adds a missing `NSHumanReadableCopyright` from
+`CreatorName` and the current year; edit it if the theme is older than that.
 
 Publishing is manual: use **Actions → Publish theme → Run workflow** or an equivalent
 explicitly authorized GitHub CLI action. Tag pushes do not publish. The workflow uses

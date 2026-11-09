@@ -232,7 +232,8 @@ export const COMMANDS: readonly CommandSpec[] = [
 		summary: "increase the Info.plist Version before a release",
 		description:
 			"Increase the integer Version NetNewsWire compares, and the last number of the " +
-			"version Finder's Get Info shows when the theme has one.",
+			"version Finder's Get Info shows when the theme has one. Adds a copyright for " +
+			"Get Info from CreatorName when the theme has none.",
 		options: [
 			{ name: "yes", type: "boolean", help: "skip the confirmation" },
 			{
