@@ -6,6 +6,8 @@ import { BUILT_IN_FIXTURE_NAMES, CATALOG_FIXTURE_NAMES } from "./commands.ts";
 import { buildPlist, type PlistDict, parsePlist } from "./plist.ts";
 
 export const REQUIRED_THEME_FILES = ["Info.plist", "template.html", "stylesheet.css"] as const;
+/** NetNewsWire 7.3 reads this instead of template.html; older releases ignore it. */
+export const TEMPLATE_7_3_FILE = "template7.3.html";
 export const PLACEHOLDER_MARKER = ".nnw-theme-uninitialized";
 export const IDENTITY_START = "<!-- nnw-theme-identity:start -->";
 export const IDENTITY_END = "<!-- nnw-theme-identity:end -->";

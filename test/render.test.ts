@@ -18,6 +18,7 @@ import {
 	removeScripts,
 	renderPage,
 	renderSite,
+	rendersDifferentlyWhenOlder,
 	substitute,
 	writeGallery,
 } from "../src/render.ts";
@@ -52,8 +53,10 @@ describe("macros", () => {
 		assert.equal(checkTargets().filter((target) => target.largeText).length, 2);
 	});
 
-	test("a template with [[enclosures]] adds two older-NetNewsWire targets", () => {
-		const older = checkTargets([], { enclosuresMacro: true }).filter((t) => t.olderNetNewsWire);
+	test("older-NetNewsWire theme differences add two targets", () => {
+		const older = checkTargets([], { olderNetNewsWire: true }).filter(
+			(t) => t.olderNetNewsWire,
+		);
 		assert.deepEqual(
 			older.map((target) => target.slug),
 			["article-mac-light-older-netnewswire", "article-iphone-dark-older-netnewswire"],
@@ -113,6 +116,77 @@ describe("enclosures", () => {
 			),
 		);
 		assert.ok(!older.includes("nnw-enclosures"));
+	});
+
+	test("primary media renders at its macro and leaves the enclosures", () => {
+		const snapshot = makeSnapshot(temporaryDirectory());
+		const theme = temporaryDirectory();
+		for (const name of ["Info.plist", "stylesheet.css"]) {
+			writeFileSync(join(theme, name), readFileSync(join(STARTER, name)));
+		}
+		writeFileSync(
+			join(theme, "template.html"),
+			'<main>[[primary_media]]</main><div class="articleBody">[[body]]</div><aside>[[enclosures]]</aside>',
+		);
+		const page = renderPage(theme, fixture, normalTargets()[0] as RenderTarget, snapshot);
+		assert.match(
+			page,
+			/<main><div class="nnw-primary-media"><div class="nnw-primary-image"><img /,
+		);
+		assert.match(page, /<\/audio>.*<\/div><\/main>/s);
+		assert.ok(page.includes("<aside></aside>"), "the audio and image moved out");
+		assert.doesNotMatch(page, /https:\/\/x\.test\//, "nothing fetches");
+		assert.doesNotMatch(page, /\[\[primary_media\]\]/);
+		const empty = renderPage(
+			theme,
+			{ title: "T", body: "<p>Text</p>" },
+			normalTargets()[0] as RenderTarget,
+			snapshot,
+		);
+		assert.ok(empty.includes("<main></main>"), "an article without media empties the macro");
+		const older = renderPage(
+			theme,
+			fixture,
+			new RenderTarget("article", "mac", "light", { olderNetNewsWire: true }),
+			snapshot,
+		);
+		assert.ok(older.includes("<main>[[primary_media]]</main>"));
+	});
+
+	test("template7.3.html wins, and older NetNewsWire reads template.html", () => {
+		const snapshot = makeSnapshot(temporaryDirectory());
+		const theme = temporaryDirectory();
+		for (const name of ["Info.plist", "stylesheet.css"]) {
+			writeFileSync(join(theme, name), readFileSync(join(STARTER, name)));
+		}
+		writeFileSync(
+			join(theme, "template.html"),
+			'<b>older</b><div class="articleBody">[[body]]</div>',
+		);
+		assert.equal(rendersDifferentlyWhenOlder(theme), false);
+		writeFileSync(
+			join(theme, "template7.3.html"),
+			'<b>current</b>[[primary_media]]<div class="articleBody">[[body]]</div>',
+		);
+		assert.equal(rendersDifferentlyWhenOlder(theme), true);
+		const current = renderPage(theme, fixture, normalTargets()[0] as RenderTarget, snapshot);
+		assert.ok(current.includes('<b>current</b><div class="nnw-primary-media">'));
+		const older = renderPage(
+			theme,
+			fixture,
+			new RenderTarget("article", "mac", "light", { olderNetNewsWire: true }),
+			snapshot,
+		);
+		assert.ok(older.includes("<b>older</b>"));
+		assert.ok(!older.includes("nnw-primary-media"));
+	});
+
+	test("[[primary_media]] alone adds the older-NetNewsWire targets", () => {
+		const theme = temporaryDirectory();
+		writeFileSync(join(theme, "template.html"), "[[primary_media]]");
+		assert.equal(rendersDifferentlyWhenOlder(theme), true);
+		writeFileSync(join(theme, "template.html"), "[[body]]");
+		assert.equal(rendersDifferentlyWhenOlder(theme), false);
 	});
 
 	test("offline enclosures keep their shape and load only fixture media", () => {

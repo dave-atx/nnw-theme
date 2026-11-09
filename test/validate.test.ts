@@ -163,6 +163,22 @@ describe("source validation", () => {
 		]);
 	});
 
+	test("template7.3.html is allowed and held to the same rules", () => {
+		const theme = makeTheme(temporaryDirectory());
+		writeFileSync(
+			join(theme, "template7.3.html"),
+			'<!-- [[primary_media]] --><main class="articleBody">[[primary_media]][[body]]</main>',
+		);
+		const { errors } = validateSource(theme);
+		assert.equal(errors.length, 1);
+		assert.match(errors[0] ?? "", /^template7\.3\.html has macros inside an HTML comment/);
+		writeFileSync(
+			join(theme, "template7.3.html"),
+			'<main class="articleBody">[[primary_media]][[body]]</main>',
+		);
+		assert.deepEqual(validateSource(theme).errors, []);
+	});
+
 	test("an uninitialized template cannot be packaged", () => {
 		const parent = temporaryDirectory();
 		const theme = makeTheme(parent);

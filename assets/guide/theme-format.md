@@ -64,11 +64,14 @@ The markup is fixed and carries no inline styles:
 Images and video carry the feed's `width` and `height` when it gives both; a caption
 appears only when there is text for it. The audio caption joins the title (else the
 file name), duration, and size with ` · `. A YouTube channel enclosure becomes the
-iframe player. Enclosures whose URL already appears in the body are skipped, and
-documents are never shown. When nothing visual remains, neither an enclosure nor an
-image or video in the body, the article's image (or thumbnail) leads the list as an
-image enclosure: a podcast episode's artwork above its player. A video uses that image
-as its poster.
+iframe player. Enclosures already in the body are skipped, including a resized
+copy at another URL or the still of a YouTube video the body embeds, and documents are
+never shown. A video uses the article's image, else its thumbnail, as its poster.
+
+A template without `primary_media`, and a short untitled post, gets the article's image
+as the first image enclosure unless the body already shows it, even beside other
+enclosures or a video that uses it as its poster. The thumbnail is not shown there:
+only `primary_media` uses it as an image.
 
 NetNewsWire releases before enclosure support leave the macro as literal text in
 every article, so a theme that places it should hide its container when it holds no
@@ -79,12 +82,42 @@ fixture, `check` also fails an enclosure image, player, or video that is hidden,
 leaves the window, or is drawn out of its shape, an audio player too narrow to seek,
 and an illegible caption.
 
+## Primary media
+
+The `primary_media` macro places the article's main media, usually above the body: a
+video with the article image as its poster, else audio with the article image above
+it, else the article image. The image is the article's own, else the first image
+enclosure, else the thumbnail. Media already in the body is left out, and whatever
+appears here is left out of the enclosures. A short untitled post, such as a Mastodon
+post, keeps its images in the enclosures, after the text. With nothing to show the
+macro is empty.
+
+```html
+<div class="nnw-primary-media">
+  <div class="nnw-primary-image"><img src="…" alt="…" title="…" width="…" height="…">
+    <div class="nnw-primary-image-caption">The image's title</div></div>
+  <div class="nnw-enclosure nnw-enclosure-audio">…</div>
+</div>
+```
+
+The video and audio blocks are the enclosures' markup. The caption appears only when
+the image has a title that differs from the article's. `core.css` adds margins and
+`height: auto`. `check` applies the enclosure rules here too.
+
+NetNewsWire before 7.3b6 leaves the macro as text, as with `enclosures`. Either hide its
+container, `.my-media:not(:has(.nnw-primary-media)) { display: none; }`, or put the
+macro only in `template7.3.html`: NetNewsWire 7.3 reads that file instead of
+`template.html` when a theme ships one, and older releases ignore it, so `template.html`
+can stay free of new macros at the cost of keeping two templates in step. `check`
+renders `template7.3.html` when it exists, and its older-NetNewsWire cases render
+`template.html` with both macros left as text.
+
 ## Pinned NetNewsWire
 
-The renderer pins NetNewsWire 7.3b4 for Mac (`mac-7.3b4`, commit
-`e530be1ab19f68fe322850bf5fb95bca4b36fb91`), whose rendering files iOS 7.3 shares.
-Enclosure support starts with 7.3b3, and 7.3b4 keeps the footnote popover inside the
-article column. It uses upstream `core.css`, macOS and
+The renderer pins NetNewsWire 7.3b6 for Mac (`mac-7.3b6`, commit
+`9a07d406177e896826e33952fb16c06e21c19000`), whose rendering files iOS 7.3 shares.
+Enclosure support starts with 7.3b3, 7.3b4 keeps the footnote popover inside the
+article column, and 7.3b6 adds `primary_media` and `template7.3.html`. It uses upstream `core.css`, macOS and
 iOS page skeletons, and `main.js`, `main_mac.js`, `main_ios.js`, and `newsfoot.js`.
 These files ship inside the `nnw-theme` package, verified by SHA-256, so previews work
 offline. iPhone and iPad share the iOS skeleton. WebKit native

@@ -2,8 +2,10 @@
 // list of failure messages. NetNewsWire writes each enclosure as
 // div.nnw-enclosure > (img | video | audio | iframe), with an optional
 // div.nnw-enclosure-caption, inside one div.nnw-enclosures: at [[enclosures]] in the
-// template, or after the body when the template has no such macro. A theme script
-// may move an enclosure elsewhere, so each is found wherever it ended up.
+// template, or after the body when the template has no such macro. [[primary_media]]
+// reuses those players, and adds div.nnw-primary-image > img with an optional
+// div.nnw-primary-image-caption. A theme script may move any of them elsewhere, so
+// each is found wherever it ended up.
 () => {
 	const failures = [];
 	const fail = (message) => failures.push(message);
@@ -14,7 +16,7 @@
 		return Number.isFinite(number) && number > 0 ? number : 0;
 	};
 
-	const enclosures = [...document.querySelectorAll(".nnw-enclosure")];
+	const enclosures = [...document.querySelectorAll(".nnw-enclosure, .nnw-primary-image")];
 	enclosures.forEach((enclosure, index) => {
 		const media = enclosure.querySelector(":scope > :is(img, video, audio, iframe)");
 		if (!media) return;
@@ -89,7 +91,7 @@
 		return base.slice(0, 3);
 	};
 	const distance = (a, b) => [0, 1, 2].reduce((sum, i) => sum + Math.abs(a[i] - b[i]), 0);
-	const captions = [...document.querySelectorAll(".nnw-enclosure-caption")];
+	const captions = [...document.querySelectorAll(".nnw-enclosure-caption, .nnw-primary-image-caption")];
 	for (const caption of captions) {
 		if (!caption.getClientRects().length || !caption.innerText.trim()) continue;
 		const name = JSON.stringify(caption.innerText.trim().slice(0, 40));

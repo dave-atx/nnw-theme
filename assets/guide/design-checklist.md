@@ -15,7 +15,8 @@ prescribed aesthetic.
   These exercise the real mechanisms: a macOS size class and an iOS Dynamic Type size.
 - Check JavaScript-off macOS and iPhone renders for readable content and usable links.
 - If the theme styles enclosures, check the `podcast` and `media-rss` fixtures: players,
-  captions, and the article image leading a podcast episode, in light and dark.
+  captions, and the article image leading a podcast episode, in light and dark. A
+  theme with `primary_media` checks them above the body, and its older-NetNewsWire render.
 - If the theme script handles footnotes or relies on classes or ids, give a fixture
   `deliveries = ["freshrss", "miniflux"]` and check the cases synced readers see.
 - Check an untitled article, such as the `mastodon` fixture: the dateline stands in for

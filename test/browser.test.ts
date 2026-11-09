@@ -16,7 +16,7 @@ const PASSING: PageState = {
 	article: true,
 	textLength: 100,
 	unresolved: false,
-	literalEnclosures: false,
+	literalMacros: [],
 	overflow: false,
 	brokenImages: [],
 	collapsedImages: [],
@@ -311,6 +311,50 @@ ${enclosure("video", '<video controls width="16" height="9" style="width: 100%; 
 				"hide its element when it holds no .nnw-enclosures",
 		]);
 		assert.deepEqual(results["hidden-mac-light-older-netnewswire"], []);
+	});
+
+	test("older NetNewsWire fails a visible [[primary_media]], and each macro is named", async () => {
+		const article =
+			'<div class="articleBody"><p>Readable article text that is comfortably longer than forty characters.</p></div>';
+		const site = temporaryDirectory();
+		writeFiles(site, {
+			"pages/article-mac-light-older-netnewswire.html": `<!doctype html><body><div>[[primary_media]]</div>${article}</body>`,
+			"pages/hidden-mac-light-older-netnewswire.html": `<!doctype html><head><style>
+.m:not(:has(.nnw-primary-media)) { display: none; }</style></head><body><div class="m">[[primary_media]]</div>${article}</body>`,
+		});
+		const older = { olderNetNewsWire: true };
+		const results = await checkPages(site, [
+			new RenderTarget("article", "mac", "light", older),
+			new RenderTarget("hidden", "mac", "light", older),
+		]);
+		assert.deepEqual(results["article-mac-light-older-netnewswire"], [
+			"[[primary_media]] shows as text in NetNewsWire releases before 7.3b6; " +
+				"hide its element when it holds no .nnw-primary-media, or use it only in template7.3.html",
+		]);
+		assert.deepEqual(results["hidden-mac-light-older-netnewswire"], []);
+	});
+
+	test("a hidden primary image and an illegible primary caption fail", async () => {
+		const pixel =
+			"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+		const article =
+			'<div class="articleBody"><p>Readable article text that is comfortably longer than forty characters.</p></div>';
+		const site = temporaryDirectory();
+		writeFiles(site, {
+			"pages/article-mac-light.html": `<!doctype html><head><style>
+.nnw-primary-image img { display: none; } .nnw-primary-image-caption { color: #fff; background: #fff; }
+</style></head><body><div class="nnw-primary-media"><div class="nnw-primary-image"><img src="${pixel}" alt=""><div class="nnw-primary-image-caption">A heron</div></div></div>${article}</body>`,
+		});
+		const results = await checkPages(site, [new RenderTarget("article", "mac", "light")]);
+		const found = results["article-mac-light"] ?? [];
+		assert.ok(
+			found.some((failure) => /enclosure 1 \(image\): not shown/.test(failure)),
+			String(found),
+		);
+		assert.ok(
+			found.some((failure) => /"A heron".*illegible/.test(failure)),
+			String(found),
+		);
 	});
 
 	test("a page without an article fails, and a look-alike origin is blocked", async () => {

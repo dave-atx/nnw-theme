@@ -14,7 +14,13 @@ import type { RenderTarget } from "./render.ts";
 
 const FOOTNOTE_CHECK = readFileSync(packagePath("assets", "footnotes.js"), "utf8");
 const ENCLOSURE_CHECK = readFileSync(packagePath("assets", "enclosures.js"), "utf8");
-const ENCLOSURES_MACRO = "[[enclosures]]";
+/** Macros older NetNewsWire leaves as text, and what explains each when it shows. */
+const NEWER_MACROS: Record<string, string> = {
+	"[[enclosures]]":
+		"without enclosure support; hide its element when it holds no .nnw-enclosures",
+	"[[primary_media]]":
+		"before 7.3b6; hide its element when it holds no .nnw-primary-media, or use it only in template7.3.html",
+};
 const LIVE_RELOAD = readFileSync(packagePath("assets", "live-reload.js"), "utf8");
 const NOT_INSTALLED = "WebKit is not installed; run `npx nnw-theme@2 setup`";
 
@@ -178,8 +184,8 @@ export interface PageState {
 	article: boolean;
 	textLength: number;
 	unresolved: boolean;
-	/** Older NetNewsWire only: the template's [[enclosures]] shows as text. */
-	literalEnclosures: boolean;
+	/** Older NetNewsWire only: macros in the template that show as text. */
+	literalMacros: string[];
 	overflow: boolean;
 	brokenImages: string[];
 	collapsedImages: string[];
@@ -197,11 +203,8 @@ export function failures(state: PageState): string[] {
 	if (!state.article || state.textLength < 40)
 		found.push("article content is missing or unreadable");
 	if (state.unresolved) found.push("unresolved theme macro");
-	if (state.literalEnclosures) {
-		found.push(
-			"[[enclosures]] shows as text in NetNewsWire releases without enclosure support; " +
-				"hide its element when it holds no .nnw-enclosures",
-		);
+	for (const macro of state.literalMacros ?? []) {
+		found.push(`${macro} shows as text in NetNewsWire releases ${NEWER_MACROS[macro]}`);
 	}
 	if (state.overflow) found.push("horizontal document overflow");
 	if (state.brokenImages.length) found.push(`broken images: ${pyReprList(state.brokenImages)}`);
@@ -230,9 +233,15 @@ async function loadImages(timeout: number) {
 	]);
 }
 
-// Runs in the page after its screenshot. With olderNetNewsWire, the template's
-// [[enclosures]] is expected in the markup and fails only if it shows as text.
-function pageState({ olderNetNewsWire, macro }: { olderNetNewsWire: boolean; macro: string }) {
+// Runs in the page after its screenshot. With olderNetNewsWire, the macros in `macros`
+// are expected in the markup and fail only if they show as text.
+function pageState({
+	olderNetNewsWire,
+	macros,
+}: {
+	olderNetNewsWire: boolean;
+	macros: string[];
+}) {
 	const article = document.querySelector<HTMLElement>(".articleBody");
 	const root = document.documentElement;
 	const html = document.body.innerHTML;
@@ -242,9 +251,13 @@ function pageState({ olderNetNewsWire, macro }: { olderNetNewsWire: boolean; mac
 		// Body only: macOS CSS legitimately keeps the font-size macro literal. Match
 		// whole macro names, so a theme script's regex such as /[[(]/ is no macro.
 		unresolved: /\[\[[A-Za-z0-9_-]+\]\]/.test(
-			olderNetNewsWire ? html.replaceAll(macro, "") : html,
+			olderNetNewsWire
+				? macros.reduce((text, macro) => text.replaceAll(macro, ""), html)
+				: html,
 		),
-		literalEnclosures: olderNetNewsWire && document.body.innerText.includes(macro),
+		literalMacros: olderNetNewsWire
+			? macros.filter((macro) => document.body.innerText.includes(macro))
+			: [],
 		overflow: root.scrollWidth > root.clientWidth + 1,
 		brokenImages: [...document.images]
 			.filter((image) => image.complete && image.naturalWidth === 0)
@@ -365,7 +378,7 @@ async function checkPage(
 		await page.screenshot({ path: screenshot, fullPage: !target.card });
 		const state = await page.evaluate(pageState, {
 			olderNetNewsWire: target.olderNetNewsWire,
-			macro: ENCLOSURES_MACRO,
+			macros: Object.keys(NEWER_MACROS),
 		});
 		const enclosures = (await page.evaluate(`(${ENCLOSURE_CHECK})()`)) as string[];
 		// Last: it clicks footnotes open, so it must not disturb the screenshot.

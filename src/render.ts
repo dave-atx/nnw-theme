@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import {
+	existsSync,
 	mkdirSync,
 	readFileSync,
 	realpathSync,
@@ -12,9 +13,9 @@ import { decodeHTML } from "entities";
 import { Parser } from "htmlparser2";
 import { DELIVERIES, DELIVERY_NAMES, type Delivery, deliver } from "./delivery.ts";
 import {
-	enclosuresHTML,
+	articleMediaHTML,
 	fixtureAttachments,
-	fixtureImageURL,
+	fixtureImages,
 	placeEnclosures,
 } from "./enclosures.ts";
 import { renderingInputs } from "./netnewswire.ts";
@@ -23,6 +24,7 @@ import {
 	fixturePath,
 	readFixture,
 	repositoryFixtures,
+	TEMPLATE_7_3_FILE,
 	ThemeError,
 	themeStem,
 } from "./project.ts";
@@ -146,8 +148,9 @@ const SCENARIOS: readonly [string, string, string][] = [
 	[
 		"older-netnewswire",
 		"Older NetNewsWire",
-		"The article fixture as NetNewsWire releases before enclosure support render it: " +
-			"they leave the template's [[enclosures]] macro as literal text, which must not show.",
+		"The article fixture as NetNewsWire releases before enclosures and primary media " +
+			"render it: template.html, with [[enclosures]] and [[primary_media]] left as " +
+			"literal text, which must not show.",
 	],
 	[
 		"article-javascript-off",
@@ -176,7 +179,7 @@ export class RenderTarget {
 	readonly height: number;
 	readonly largeText: boolean;
 	readonly themeScripts: boolean;
-	/** Rendered as NetNewsWire before [[enclosures]]: the macro stays literal. */
+	/** Rendered as older NetNewsWire: template.html, macros it lacks left literal. */
 	readonly olderNetNewsWire: boolean;
 	/** A 2x capture of the card viewport alone, for the marketplace card. */
 	readonly card: boolean;
@@ -328,13 +331,12 @@ export function repositoryTargets(root: string): RenderTarget[] {
 }
 
 /**
- * Everything check renders. A template that places [[enclosures]] itself also gets
- * the older-NetNewsWire cases, since releases before enclosure support leave that
- * macro as text in every article.
+ * Everything check renders. A theme whose older releases render differently (see
+ * rendersDifferentlyWhenOlder) also gets the older-NetNewsWire cases.
  */
 export function checkTargets(
 	extras: readonly string[] = [],
-	{ enclosuresMacro = false, deliveries = {} as Record<string, readonly Delivery[]> } = {},
+	{ olderNetNewsWire = false, deliveries = {} as Record<string, readonly Delivery[]> } = {},
 ): RenderTarget[] {
 	const targets = [
 		...normalTargets(extras, deliveries),
@@ -343,7 +345,7 @@ export function checkTargets(
 		new RenderTarget("article", "mac", "light", { themeScripts: false }),
 		new RenderTarget("article", "iphone", "light", { themeScripts: false }),
 	];
-	if (enclosuresMacro) {
+	if (olderNetNewsWire) {
 		targets.push(
 			new RenderTarget("article", "mac", "light", { olderNetNewsWire: true }),
 			new RenderTarget("article", "iphone", "dark", { olderNetNewsWire: true }),
@@ -352,9 +354,24 @@ export function checkTargets(
 	return targets;
 }
 
-/** Whether a theme places enclosures itself, as NetNewsWire decides it. */
-export function placesEnclosures(theme: string): boolean {
-	return read(join(theme, "template.html")).includes("[[enclosures]]");
+/**
+ * Whether older NetNewsWire renders this theme differently: it ignores template7.3.html,
+ * and leaves a macro it doesn't know as text in every article.
+ */
+export function rendersDifferentlyWhenOlder(theme: string): boolean {
+	if (existsSync(join(theme, TEMPLATE_7_3_FILE))) return true;
+	const template = read(join(theme, "template.html"));
+	return ["[[enclosures]]", "[[primary_media]]"].some((macro) => template.includes(macro));
+}
+
+/** The template NetNewsWire reads: 7.3 prefers template7.3.html, older releases can't. */
+function themeTemplate(theme: string, target: RenderTarget): string {
+	const preferred = join(theme, TEMPLATE_7_3_FILE);
+	return read(
+		!target.olderNetNewsWire && existsSync(preferred)
+			? preferred
+			: join(theme, "template.html"),
+	);
 }
 
 /** Perform NetNewsWire's single-pass, non-recursive macro substitution. */
@@ -544,14 +561,20 @@ function fixtureMapping(
 	let body = mapping.body ?? "";
 	if (target.delivery) body = deliver(body, target.delivery, mapping.preferred_link ?? "");
 	mapping.body = offlineMedia(body, media);
-	// NetNewsWire before enclosure support ignores attachments and leaves the macro.
+	// NetNewsWire before these macros ignores attachments and leaves them literal.
 	if (!target.olderNetNewsWire) {
 		const name = `fixtures/${target.fixture}.toml`;
-		const enclosures = enclosuresHTML(
-			fixtureAttachments(fixture, name),
-			body,
-			fixtureImageURL(fixture, name),
+		const { primaryMedia, enclosures } = articleMediaHTML(
+			{
+				attachments: fixtureAttachments(fixture, name),
+				...fixtureImages(fixture, name),
+				title: mapping.title ?? "",
+				body,
+				baseURL: pageBaseURL(fixture, target),
+			},
+			template.includes("[[primary_media]]"),
 		);
+		mapping.primary_media = offlineEnclosures(primaryMedia, media);
 		Object.assign(
 			mapping,
 			placeEnclosures(template, mapping.body, offlineEnclosures(enclosures, media)),
@@ -693,7 +716,7 @@ export function renderPage(
 		styleSubstitutions,
 	);
 
-	const template = read(join(theme, "template.html"));
+	const template = themeTemplate(theme, target);
 	let body = substitute(template, fixtureMapping(fixture, target, template, media));
 	if (!target.themeScripts) body = removeScripts(body);
 	let page = substitute(skeleton, {

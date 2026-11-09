@@ -6,7 +6,7 @@ writes it as a TOML fixture. `npx nnw-theme@2 capture` prints the setup steps.
 
 NetNewsWire with enclosure support renders an article's enclosures into that
 dictionary: as `enclosures`, or appended to a wrapped `body` when the template has no
-[[enclosures]] macro. nnwdump keeps neither. It records the article's attachments
+[[enclosures]] macro, and 7.3b6 and later add `primary_media`. nnwdump keeps none of them. It records the article's attachments
 and image instead, as [[attachments]] tables and image_url/thumbnail_url, so nnw-theme
 renders them for whichever template previews the fixture. When the page's base URL
 differs from the article's link, as for an article synced through the Reader API, it
@@ -34,6 +34,7 @@ DEFAULT_OUTPUT = "fixtures/nnw-capture.toml"
 # Sorted last so the short metadata stays at the top of the file.
 _HTML_KEYS = {"body"}
 _ENCLOSURES_KEY = "enclosures"
+_PRIMARY_MEDIA_KEY = "primary_media"
 # ArticleRenderer's body for a template without [[enclosures]]: <div>BODY</div>ENCLOSURES.
 _WRAPPED_BODY_TAIL = '</div><div class="nnw-enclosures">'
 # Attachment's Codable keys, in fixture order, with their fixture names.
@@ -88,6 +89,7 @@ def without_enclosures(pairs: list[tuple[str, str]]) -> list[tuple[str, str]]:
         if body.startswith("<div>") and at != -1:
             values["body"] = body[len("<div>") : at]
     values.pop(_ENCLOSURES_KEY, None)
+    values.pop(_PRIMARY_MEDIA_KEY, None)
     return list(values.items())
 
 

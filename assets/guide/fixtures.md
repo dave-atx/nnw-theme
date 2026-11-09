@@ -36,11 +36,13 @@ footnotes stay plain links until a theme script turns them into `a.footnote` mar
 ## Enclosures
 
 An article's enclosures are data, not markup: NetNewsWire renders them into the
-`enclosures` macro, or after the body, from the article's attachments. A fixture lists
-them after its other keys, in feed order, and may give the article's image:
+`enclosures` and `primary_media` macros, or after the body, from the article's
+attachments. A fixture lists them after its other keys, in feed order, and may give
+the article's image and thumbnail, which NetNewsWire treats differently:
 
 ```toml
-image_url = "https://example.org/episode-art.jpg"  # else thumbnail_url
+image_url = "https://example.org/episode-art.jpg"
+thumbnail_url = "https://example.org/thumb.jpg"     # a primary_media image only
 
 [[attachments]]
 url = "https://example.org/episode-311.mp3"        # required

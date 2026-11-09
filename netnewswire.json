@@ -1,6 +1,6 @@
 {
-	"release": "mac-7.3b4",
-	"commit": "e530be1ab19f68fe322850bf5fb95bca4b36fb91",
+	"release": "mac-7.3b6",
+	"commit": "9a07d406177e896826e33952fb16c06e21c19000",
 	"files": [
 		{
 			"destination": "LICENSE",
@@ -20,12 +20,12 @@
 		{
 			"destination": "Shared/core.css",
 			"source": "Shared/Article Rendering/core.css",
-			"sha256": "1cc7d654559b3cd6db1202391c6fcfb8041eaae6fc81850df1be72ebb6921090"
+			"sha256": "3a1a56fe6e76e9e11b4180399e6d90b702075224fd3da4e678cf627e83939c5b"
 		},
 		{
 			"destination": "Shared/main.js",
 			"source": "Shared/Article Rendering/main.js",
-			"sha256": "1c3c1084e295f83668a427b8ae89813a1df621cfb053e8192bbad3f044be3581"
+			"sha256": "6be65bcb16be38b686ddf8d96bca3b0d844eee2e138758842b247ab50503dcc4"
 		},
 		{
 			"destination": "Shared/newsfoot.js",

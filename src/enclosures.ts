@@ -1,7 +1,9 @@
 // A port of NetNewsWire's enclosure rendering: Attachment.displayMedium
-// (Modules/Articles/Sources/Articles/Attachment.swift) and the [[enclosures]] HTML
-// (Shared/Article Rendering/ArticleRenderer+Enclosures.swift), at the pinned commit.
+// (Modules/Articles/Sources/Articles/Attachment.swift) and the [[enclosures]] and
+// [[primary_media]] HTML (Shared/Article Rendering/ArticleRenderer+Enclosures.swift and
+// ArticleRenderer+PrimaryMedia.swift), at the pinned commit.
 // Keep it line for line with the Swift, so a diff of the two stays easy to review.
+import { significantImageURLs } from "./body-images.ts";
 import { type Fixture, ThemeError } from "./project.ts";
 
 export const MEDIA = ["image", "audio", "video", "document", "executable"] as const;
@@ -63,23 +65,30 @@ export function fixtureAttachments(fixture: Fixture, name: string): Attachment[]
 	});
 }
 
-/** A fixture's image_url, else its thumbnail_url: Article.imageLink ?? thumbnailLink. */
-export function fixtureImageURL(fixture: Fixture, name: string): string | undefined {
-	for (const key of ["image_url", "thumbnail_url"]) {
+/** A fixture's image_url and thumbnail_url: Article.imageLink and thumbnailLink. */
+export function fixtureImages(
+	fixture: Fixture,
+	name: string,
+): { imageLink?: string; thumbnailLink?: string } {
+	const text = (key: string) => {
 		const value = fixture[key];
-		if (value === undefined) continue;
-		if (typeof value !== "string") throw new ThemeError(`${name}: ${key} must be a string`);
+		if (value !== undefined && typeof value !== "string") {
+			throw new ThemeError(`${name}: ${key} must be a string`);
+		}
 		return value;
-	}
-	return undefined;
+	};
+	return { imageLink: text("image_url"), thumbnailLink: text("thumbnail_url") };
 }
 
 const AUDIO_EXTENSIONS = new Set(["mp3", "m4a", "aac", "wav", "ogg", "oga", "opus", "flac"]);
 const VIDEO_EXTENSIONS = new Set(["mp4", "m4v", "mov", "webm"]);
 const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp", "heic", "avif"]);
-const VISUAL_ELEMENT_TAGS = ["<img", "<picture", "<video", "<iframe"];
 const YOUTUBE_FLASH_PLAYER_PATH_PREFIX = "/v/";
 const YOUTUBE_EMBED_URL_PREFIX = "https://www.youtube-nocookie.com/embed/";
+const YOUTUBE_EMBED_PATHS = ["youtube.com/embed/", "youtube-nocookie.com/embed/"];
+const WORDPRESS_SIZE_SUFFIX = /-\d+x\d+(?=\.[A-Za-z0-9]+$)/;
+const ENGADGET_LARGE_IMAGE_PREFIX = "l-";
+const SHORT_POST_MAXIMUM_BODY_LENGTH = 2048;
 
 /** Foundation's URL(string:), enough for host and path: relative URLs have no host. */
 function parseURL(value: string): { host: string; path: string } | undefined {
@@ -213,20 +222,73 @@ function dimensionAttributes(attachment: Attachment): string {
 	return ` width="${attachment.width}" height="${attachment.height}"`;
 }
 
-function isVisual(attachment: Attachment): boolean {
-	if (youTubeEmbedURL(attachment.url) !== undefined) return true;
-	const medium = displayMedium(attachment);
-	return medium === "image" || medium === "video";
-}
-
-function bodyContainsVisualElement(body: string): boolean {
-	const lower = body.toLowerCase();
-	return VISUAL_ELEMENT_TAGS.some((tag) => lower.includes(tag));
-}
-
 /** Body HTML escapes `&` in attributes, so check both forms of the URL. */
 function bodyContainsURL(body: string, url: string): boolean {
 	return body.includes(url) || body.includes(escapeXML(url));
+}
+
+/** URL.pathComponents without the root, percent-decoded. */
+function pathComponents(value: string): string[] | undefined {
+	const path = parseURL(value)?.path;
+	if (path === undefined) return undefined;
+	return path
+		.split("/")
+		.filter(Boolean)
+		.map((component) => {
+			try {
+				return decodeURIComponent(component);
+			} catch {
+				return component;
+			}
+		});
+}
+
+/** ArticleRenderingSpecialCases.bodyEmbedsYouTubeVideo(stillImageURL:body:). */
+function bodyEmbedsYouTubeVideo(stillImageURL: string, body: string): boolean {
+	return (pathComponents(stillImageURL) ?? []).some(
+		(component) =>
+			/^[A-Za-z0-9_-]{11}$/.test(component) &&
+			YOUTUBE_EMBED_PATHS.some((path) => body.includes(path + component)),
+	);
+}
+
+function isEngadgetImage(value: string): boolean {
+	const host =
+		parseURL(value)
+			?.host.toLowerCase()
+			.replace(/^www\./, "") ?? "";
+	return host === "engadget.com" || host.endsWith(".engadget.com");
+}
+
+/**
+ * The last two path components, lowercased, without a WordPress size suffix or Engadget
+ * size prefix. Ignores the host and query: resized copies often come through a service.
+ */
+function imageIdentity(value: string): string | undefined {
+	const components = pathComponents(value);
+	const last = components?.at(-1);
+	if (!components || last === undefined) return undefined;
+	const name = (
+		last.startsWith(ENGADGET_LARGE_IMAGE_PREFIX) && isEngadgetImage(value)
+			? last.slice(ENGADGET_LARGE_IMAGE_PREFIX.length)
+			: last
+	).replace(WORDPRESS_SIZE_SUFFIX, "");
+	return [...components.slice(0, -1).slice(-1), name].join("/").toLowerCase();
+}
+
+/** ArticleRenderer.bodyImageIdentities: for spotting a resized copy of a body image. */
+export function bodyImageIdentities(body: string, baseURL?: string): Set<string> {
+	return new Set(
+		significantImageURLs(body, baseURL)
+			.map(imageIdentity)
+			.filter((identity) => identity !== undefined),
+	);
+}
+
+function bodyContains(url: string, body: string, identities: ReadonlySet<string>): boolean {
+	if (bodyContainsURL(body, url) || bodyEmbedsYouTubeVideo(url, body)) return true;
+	const identity = imageIdentity(url);
+	return identity !== undefined && identities.has(identity);
 }
 
 function enclosureHTML(
@@ -268,36 +330,145 @@ function enclosureHTML(
 }
 
 /**
- * HTML for the [[enclosures]] substitution, empty when there's nothing to show.
- * Skips attachments whose URLs already appear in the body. imageURL is shown only
- * when nothing else visual is: no image or video enclosure, nor one in the body.
+ * HTML for the [[enclosures]] substitution, empty when there's nothing to show. Skips
+ * attachments already in the body, including resized copies. posterURL is a video's poster.
  */
 export function enclosuresHTML(
 	attachments: readonly Attachment[],
 	body: string,
-	imageURL: string | undefined,
+	identities: ReadonlySet<string>,
+	posterURL: string | undefined,
 ): string {
-	const enclosures: string[] = [];
-	let hasVisualEnclosure = false;
-	for (const attachment of attachments) {
-		if (bodyContainsURL(body, attachment.url)) continue;
-		const enclosure = enclosureHTML(attachment, imageURL);
-		if (enclosure === undefined) continue;
-		enclosures.push(enclosure);
-		hasVisualEnclosure ||= isVisual(attachment);
-	}
-	if (
-		!hasVisualEnclosure &&
-		imageURL &&
-		!bodyContainsVisualElement(body) &&
-		!bodyContainsURL(body, imageURL)
-	) {
-		enclosures.unshift(
-			`<div class="nnw-enclosure nnw-enclosure-image"><img src="${escapeXML(imageURL)}" alt=""></div>`,
-		);
-	}
+	const enclosures = attachments
+		.filter((attachment) => !bodyContains(attachment.url, body, identities))
+		.map((attachment) => enclosureHTML(attachment, posterURL))
+		.filter((enclosure) => enclosure !== undefined);
 	if (!enclosures.length) return "";
 	return `<div class="nnw-enclosures">\n${enclosures.join("\n")}\n</div>`;
+}
+
+/** Untitled and short, as Mastodon posts are: their images follow the text. */
+function isShortUntitledPost(title: string, body: string): boolean {
+	if (title) return false;
+	return [...new Intl.Segmenter().segment(body)].length < SHORT_POST_MAXIMUM_BODY_LENGTH;
+}
+
+function isVideo(attachment: Attachment): boolean {
+	return displayMedium(attachment) === "video" || youTubeEmbedURL(attachment.url) !== undefined;
+}
+
+/** The article image, else the first image attachment, else the thumbnail; undefined if in the body. */
+function primaryImage(
+	imageLink: string | undefined,
+	thumbnailLink: string | undefined,
+	attachments: readonly Attachment[],
+	body: string,
+	identities: ReadonlySet<string>,
+): Attachment | undefined {
+	let image: Attachment | undefined;
+	if (imageLink) {
+		image = attachments.find((attachment) => attachment.url === imageLink) ?? {
+			url: imageLink,
+			medium: "image",
+		};
+	} else {
+		image = attachments.find((attachment) => displayMedium(attachment) === "image");
+		if (!image && thumbnailLink) image = { url: thumbnailLink, medium: "image" };
+	}
+	return image && !bodyContains(image.url, body, identities) ? image : undefined;
+}
+
+function collapsingWhitespace(value: string): string {
+	return value.split(/\s+/).filter(Boolean).join(" ").toLowerCase();
+}
+
+function primaryImageHTML(image: Attachment, articleTitle: string): string {
+	let attributes = `src="${escapeXML(image.url)}"`;
+	let caption = "";
+	if (image.title) {
+		const title = escapeXML(image.title);
+		attributes += ` alt="${title}" title="${title}"`;
+		if (collapsingWhitespace(image.title) !== collapsingWhitespace(articleTitle)) {
+			caption = `<div class="nnw-primary-image-caption">${title}</div>`;
+		}
+	} else {
+		attributes += ' alt=""';
+	}
+	return `<div class="nnw-primary-image"><img ${attributes}${dimensionAttributes(image)}>${caption}</div>`;
+}
+
+/** An article's media, as ArticleRenderer takes them from the feed. */
+export interface ArticleMedia {
+	attachments: readonly Attachment[];
+	imageLink?: string | undefined;
+	thumbnailLink?: string | undefined;
+	title: string;
+	body: string;
+	baseURL?: string | undefined;
+}
+
+/** A video, else audio with the article image, else the article image. */
+function primaryMedia(
+	article: ArticleMedia,
+	identities: ReadonlySet<string>,
+	includesImage: boolean,
+): { html: string; urls: Set<string> } | undefined {
+	const { attachments, imageLink, thumbnailLink, title, body } = article;
+	const wrap = (html: string) => `<div class="nnw-primary-media">${html}</div>`;
+	const playable = attachments.filter(({ url }) => !bodyContains(url, body, identities));
+	const posterURL = imageLink ?? thumbnailLink;
+	const video = playable.find(isVideo);
+	const videoHTML = video && enclosureHTML(video, posterURL);
+	if (video && videoHTML !== undefined) {
+		const urls = new Set([video.url]);
+		if (posterURL !== undefined) urls.add(posterURL);
+		return { html: wrap(videoHTML), urls };
+	}
+	let imageHTML = "";
+	const urls = new Set<string>();
+	const image = includesImage
+		? primaryImage(imageLink, thumbnailLink, attachments, body, identities)
+		: undefined;
+	if (image) {
+		imageHTML = primaryImageHTML(image, title);
+		urls.add(image.url);
+	}
+	const audio = playable.find((attachment) => displayMedium(attachment) === "audio");
+	const audioHTML = audio && enclosureHTML(audio, undefined);
+	if (audio && audioHTML !== undefined) {
+		urls.add(audio.url);
+		return { html: wrap(imageHTML + audioHTML), urls };
+	}
+	return imageHTML ? { html: wrap(imageHTML), urls } : undefined;
+}
+
+/**
+ * The [[primary_media]] and [[enclosures]] HTML, as articleSubstitutions() builds them.
+ * A template without [[primary_media]], or a short untitled post, gets the article image
+ * in the enclosures instead; only [[primary_media]] uses the thumbnail as an image.
+ */
+export function articleMediaHTML(
+	article: ArticleMedia,
+	hasPrimaryMedia: boolean,
+): { primaryMedia: string; enclosures: string } {
+	const { imageLink, thumbnailLink, title, body } = article;
+	const identities = bodyImageIdentities(body, article.baseURL);
+	let attachments = [...article.attachments];
+	const showsPrimaryImage = hasPrimaryMedia && !isShortUntitledPost(title, body);
+	const primary = hasPrimaryMedia
+		? primaryMedia(article, identities, showsPrimaryImage)
+		: undefined;
+	if (primary) attachments = attachments.filter(({ url }) => !primary.urls.has(url));
+	if (!showsPrimaryImage) {
+		const image = primaryImage(imageLink, undefined, attachments, body, identities);
+		if (image && !primary?.urls.has(image.url) && !attachments.includes(image)) {
+			attachments.unshift(image);
+		}
+	}
+	return {
+		primaryMedia: primary?.html ?? "",
+		enclosures: enclosuresHTML(attachments, body, identities, imageLink ?? thumbnailLink),
+	};
 }
 
 /**

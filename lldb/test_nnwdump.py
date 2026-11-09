@@ -65,6 +65,8 @@ class NnwdumpTests(unittest.TestCase):
         enclosures = '<div class="nnw-enclosures">\n<div class="nnw-enclosure"></div>\n</div>'
         placed = nnwdump.without_enclosures([("body", "<p>B</p>"), ("enclosures", enclosures)])
         self.assertEqual(placed, [("body", "<p>B</p>")])
+        primary = nnwdump.without_enclosures([("body", "<p>B</p>"), ("primary_media", "<div></div>")])
+        self.assertEqual(primary, [("body", "<p>B</p>")])
         appended = nnwdump.without_enclosures([("body", f"<div><p>B</p><audio></div>{enclosures}")])
         self.assertEqual(appended, [("body", "<p>B</p><audio>")])
         plain = nnwdump.without_enclosures([("body", "<div><p>B</p></div>")])

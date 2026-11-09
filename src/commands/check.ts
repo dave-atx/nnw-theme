@@ -20,10 +20,10 @@ import {
 	allFixtures,
 	checkTargets,
 	extraFixtures,
-	placesEnclosures,
 	type RenderTarget,
 	readDeliveries,
 	renderSite,
+	rendersDifferentlyWhenOlder,
 	writeGallery,
 } from "../render.ts";
 import { staleStubs } from "../stubs.ts";
@@ -71,7 +71,7 @@ export default async function check({ values }: Args): Promise<void> {
 	printWarnings(staleStubs(root));
 	const extras = extraFixtures(root);
 	const targets = checkTargets(extras, {
-		enclosuresMacro: placesEnclosures(theme),
+		olderNetNewsWire: rendersDifferentlyWhenOlder(theme),
 		deliveries: readDeliveries(root, allFixtures(extras)),
 	});
 	const expected = expectations(root, targets);

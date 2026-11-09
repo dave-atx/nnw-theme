@@ -6,6 +6,7 @@ import {
 	PLACEHOLDER_MARKER,
 	REQUIRED_THEME_FILES,
 	readPlist,
+	TEMPLATE_7_3_FILE,
 	ThemeError,
 	themeStem,
 } from "./project.ts";
@@ -84,6 +85,7 @@ function isRemote(value: string): boolean {
 function isAllowedFile(name: string): boolean {
 	return (
 		(REQUIRED_THEME_FILES as readonly string[]).includes(name) ||
+		name === TEMPLATE_7_3_FILE ||
 		OPTIONAL_THEME_FILE.test(name.toUpperCase())
 	);
 }
@@ -173,46 +175,48 @@ export function validateSource(
 	report.errors.push(...metadataReport.errors);
 	report.warnings.push(...metadataReport.warnings);
 
-	const templatePath = join(theme, "template.html");
-	if (isRegularFile(templatePath)) {
-		const template = readFileSync(templatePath, "utf8");
-		if (!template.includes("[[")) {
-			report.warnings.push("template.html contains no NetNewsWire macros");
-		}
-		const commented = commentedMacros(template);
-		if (commented.length) {
-			report.errors.push(
-				`template.html has macros inside an HTML comment (${commented[0]}` +
-					`${commented.length > 1 ? ` and ${commented.length - 1} more` : ""}). ` +
-					"NetNewsWire substitutes them there too, so an article containing --> " +
-					"ends the comment early and the rest shows as text; " +
-					"write macro names without double brackets",
-			);
-		}
-		const references = resourceReferences(template);
-		if (/<style\b[^>]*>[\s\S]*?@import\s/i.test(template)) {
-			report.errors.push("CSS @import is not allowed in template.html");
-		}
-		for (const [tag, attribute, value] of references) {
-			if (
-				!value ||
-				["data:", "#", "mailto:", "tel:"].some((prefix) => value.startsWith(prefix))
-			) {
-				continue;
+	for (const templateName of ["template.html", TEMPLATE_7_3_FILE]) {
+		const templatePath = join(theme, templateName);
+		if (isRegularFile(templatePath)) {
+			const template = readFileSync(templatePath, "utf8");
+			if (!template.includes("[[")) {
+				report.warnings.push(`${templateName} contains no NetNewsWire macros`);
 			}
-			if (tag === "script" || tag === "stylesheet") {
-				report.errors.push(`external ${tag} is not allowed: ${value}`);
-			} else if (isRemote(value)) {
-				remoteMessage(
-					report,
-					`remote theme-owned ${tag} may not load in NetNewsWire: ${value}`,
-					allowRemoteMedia,
-				);
-			} else if (!value.includes("[[")) {
+			const commented = commentedMacros(template);
+			if (commented.length) {
 				report.errors.push(
-					"bundle-local resource references do not work in NetNewsWire: " +
-						`${attribute}=${pyRepr(value)}`,
+					`${templateName} has macros inside an HTML comment (${commented[0]}` +
+						`${commented.length > 1 ? ` and ${commented.length - 1} more` : ""}). ` +
+						"NetNewsWire substitutes them there too, so an article containing --> " +
+						"ends the comment early and the rest shows as text; " +
+						"write macro names without double brackets",
 				);
+			}
+			const references = resourceReferences(template);
+			if (/<style\b[^>]*>[\s\S]*?@import\s/i.test(template)) {
+				report.errors.push(`CSS @import is not allowed in ${templateName}`);
+			}
+			for (const [tag, attribute, value] of references) {
+				if (
+					!value ||
+					["data:", "#", "mailto:", "tel:"].some((prefix) => value.startsWith(prefix))
+				) {
+					continue;
+				}
+				if (tag === "script" || tag === "stylesheet") {
+					report.errors.push(`external ${tag} is not allowed: ${value}`);
+				} else if (isRemote(value)) {
+					remoteMessage(
+						report,
+						`remote theme-owned ${tag} may not load in NetNewsWire: ${value}`,
+						allowRemoteMedia,
+					);
+				} else if (!value.includes("[[")) {
+					report.errors.push(
+						"bundle-local resource references do not work in NetNewsWire: " +
+							`${attribute}=${pyRepr(value)}`,
+					);
+				}
 			}
 		}
 	}
