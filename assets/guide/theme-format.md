@@ -13,9 +13,9 @@ including spaces and capitalization. `CreatorHomePage` is an absolute HTTP(S) UR
 The identifier and bundle name stay stable after the first release.
 
 Two optional string keys fill in Finder's Get Info window, and NetNewsWire ignores
-both. `CFBundleGetInfoString` is the Version row; a theme's flat layout can't use
-`CFBundleShortVersionString`, which Finder doesn't read there.
-`NSHumanReadableCopyright` is the Copyright row. `init` writes both. `bump` keeps the
+both. `CFBundleShortVersionString` is the Version row, and `NSHumanReadableCopyright`
+is the Copyright row. Finder's window ignores `CFBundleGetInfoString`, which
+`nnw-theme` 2.6.0 wrote; `bump` moves it to `CFBundleShortVersionString`. `init` writes both. `bump` keeps the
 version current and adds a missing copyright from `CreatorName` and the current year.
 
 NetNewsWire performs two single-pass substitutions. First, article values replace

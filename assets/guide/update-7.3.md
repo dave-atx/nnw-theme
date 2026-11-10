@@ -94,7 +94,7 @@ Give the person the preview path it prints.
 
 Publishing is the person's decision, so confirm first. Then increase the versions:
 
-- If the plist has no `CFBundleGetInfoString`, run
+- If the plist has no `CFBundleShortVersionString` or `CFBundleGetInfoString`, run
   `npx nnw-theme@2 bump --get-info-version 1.0.0`, using the theme's own version if it
   has one. Finder's Get Info then shows that version.
 - Otherwise run `npx nnw-theme@2 bump`.
