@@ -43,6 +43,7 @@ export const GUIDE_TOPICS = [
 	"fixtures",
 	"design-checklist",
 	"publishing",
+	"update-7.3",
 ] as const;
 export const SHELLS = ["fish", "zsh", "bash"] as const;
 /** Fixtures that ship in the package; also in project.ts, which reads them. */

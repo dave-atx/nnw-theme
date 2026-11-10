@@ -57,12 +57,17 @@ export function fixtureHint(root: string): string | undefined {
 	if (repositoryFixtures(root).length) return undefined;
 	return (
 		"Hint: this theme has no fixtures of its own. `npx nnw-theme@2 fixture list` " +
-		"shows ready-made ones modeled on WordPress, Ghost, Substack, Medium, and Mastodon markup."
+		"shows ready-made ones modeled on WordPress, Ghost, Substack, Medium, and Mastodon " +
+		"markup, and on podcast and Media RSS enclosures."
 	);
 }
 
-/** A one-line pointer to NetNewsWire 7.3's media macros, for a theme that doesn't place them. */
-export function mediaHint(theme: string): string | undefined {
+/**
+ * A one-line pointer to the 7.3 update steps for a theme that doesn't place the media
+ * macros, or to the media fixtures for one that does but can't yet test them. A theme
+ * with no fixtures at all gets fixtureHint instead.
+ */
+export function mediaHint(root: string, theme: string): string | undefined {
 	const newer = join(theme, TEMPLATE_7_3_FILE);
 	const template = readFileSync(
 		existsSync(newer) ? newer : join(theme, "template.html"),
@@ -71,10 +76,21 @@ export function mediaHint(theme: string): string | undefined {
 	const missing = ["primary_media", "enclosures"].filter(
 		(macro) => !template.includes(`[[${macro}]]`),
 	);
-	if (!missing.length) return undefined;
+	if (missing.length) {
+		return (
+			`Hint: this theme doesn't place NetNewsWire 7.3's ${missing.join(" or ")}. ` +
+			"`npx nnw-theme@2 guide update-7.3` has the steps."
+		);
+	}
+	const fixtures = repositoryFixtures(root);
+	const hasMedia = (name: string) => {
+		const fixture = readFixture(fixturePath(root, name));
+		return ["attachments", "image_url", "thumbnail_url"].some((key) => key in fixture);
+	};
+	if (!fixtures.length || fixtures.some(hasMedia)) return undefined;
 	return (
-		`Hint: this theme doesn't place NetNewsWire 7.3's ${missing.join(" or ")}. ` +
-		"`npx nnw-theme@2 guide theme-format` explains adding them in a template7.3.html."
+		"Hint: no fixture here has audio, video, or an article image, so check can't test " +
+		"this theme's media. `npx nnw-theme@2 fixture add podcast media-rss` adds some."
 	);
 }
 
@@ -85,6 +101,18 @@ export function getInfoHint(theme: string): string | undefined {
 		"Hint: Finder's Get Info shows no version for this theme. " +
 		"At your next release, `npx nnw-theme@2 bump --get-info-version 1.0.0` adds one."
 	);
+}
+
+function printHints(root: string, theme: string): void {
+	let hints: (string | undefined)[];
+	try {
+		hints = [fixtureHint(root), mediaHint(root, theme), getInfoHint(theme)];
+	} catch {
+		return; // A bundle too broken to read: validation says why.
+	}
+	for (const hint of hints) {
+		if (hint) console.log(hint);
+	}
 }
 
 async function offerToOpen(index: string, choice: boolean | undefined): Promise<void> {
@@ -105,9 +133,16 @@ export default async function check({ values }: Args): Promise<void> {
 	const expected = expectations(root, targets);
 	const progress = new CheckProgress(targets.length);
 	progress.status("Validating and packaging the theme…");
-	const archive = buildArchive(theme, join(root, "build", "release"), {
-		allowRemoteMedia: values["allow-remote-media"] === true,
-	});
+	let archive: ReturnType<typeof buildArchive>;
+	try {
+		archive = buildArchive(theme, join(root, "build", "release"), {
+			allowRemoteMedia: values["allow-remote-media"] === true,
+		});
+	} catch (error) {
+		progress.done();
+		printHints(root, theme);
+		throw error;
+	}
 	progress.done();
 	printWarnings(archive.warnings);
 	progress.status(`Rendering ${targets.length} pages…`);
@@ -143,9 +178,7 @@ export default async function check({ values }: Args): Promise<void> {
 		);
 		console.log(`PASS: ${targets.length} WebKit renders and ${packageName}`);
 	}
-	for (const hint of [fixtureHint(root), mediaHint(theme), getInfoHint(theme)]) {
-		if (hint) console.log(hint);
-	}
+	printHints(root, theme);
 	const index = join(site, "index.html");
 	console.log(`Preview: ${index}`);
 	await offerToOpen(index, values.open as boolean | undefined);

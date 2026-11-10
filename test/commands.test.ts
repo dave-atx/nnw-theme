@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { expectations, fixtureHint, getInfoHint, mediaHint } from "../src/commands/check.ts";
 import { absoluteHomepage, defaultIdentifier } from "../src/commands/init.ts";
 import { CheckProgress } from "../src/commands/progress.ts";
+import { GUIDE_TOPICS } from "../src/commands.ts";
 import { archiveBytes } from "../src/package.ts";
 import { buildPlist, type PlistDict, parsePlist } from "../src/plist.ts";
 import { normalTargets, RenderTarget } from "../src/render.ts";
@@ -238,20 +239,54 @@ describe("fixture", () => {
 	test("check hints at the 7.3 media macros a theme doesn't place", () => {
 		const root = theme();
 		const bundle = join(root, "Reader.nnwtheme");
-		assert.match(mediaHint(bundle) ?? "", /7\.3's primary_media or enclosures\. /);
+		assert.match(
+			mediaHint(root, bundle) ?? "",
+			/7\.3's primary_media or enclosures\. .*guide update-7\.3/,
+		);
 		writeFiles(root, {
 			"Reader.nnwtheme/template.html": "[[enclosures]] [[body]]",
 		});
-		assert.match(mediaHint(bundle) ?? "", /7\.3's primary_media\. /);
+		assert.match(mediaHint(root, bundle) ?? "", /7\.3's primary_media\. /);
 		writeFiles(root, {
 			"Reader.nnwtheme/template.html": "[[primary_media]] [[enclosures]]",
 		});
-		assert.equal(mediaHint(bundle), undefined);
+		assert.equal(mediaHint(root, bundle), undefined);
 		writeFiles(root, {
 			"Reader.nnwtheme/template.html": "[[body]]",
 			"Reader.nnwtheme/template7.3.html": "[[primary_media]] [[body]] [[enclosures]]",
 		});
-		assert.equal(mediaHint(bundle), undefined);
+		assert.equal(mediaHint(root, bundle), undefined);
+	});
+
+	test("check hints at media fixtures once a theme places the macros", () => {
+		const root = theme();
+		const bundle = join(root, "Reader.nnwtheme");
+		writeFiles(root, {
+			"Reader.nnwtheme/template.html": "[[primary_media]] [[enclosures]]",
+			"fixtures/own.toml": 'title = "Plain"',
+		});
+		assert.match(mediaHint(root, bundle) ?? "", /fixture add podcast media-rss/);
+		writeFiles(root, { "fixtures/art.toml": 'image_url = "https://example.org/a.jpg"' });
+		assert.equal(mediaHint(root, bundle), undefined);
+	});
+
+	test("check still prints its hints when validation fails", () => {
+		const root = theme();
+		writeFiles(root, { "Reader.nnwtheme/template.html": "<!-- [[title]] --> [[body]]" });
+		const result = run(root, "check", "--no-open");
+		assert.notEqual(result.status, 0);
+		assert.match(result.stdout, /guide update-7\.3/);
+		assert.match(result.stdout, /bump --get-info-version/);
+		assert.match(result.stderr, /inside an HTML comment/);
+	});
+
+	test("a bundle too broken to read gets its error and no hints", () => {
+		const root = theme();
+		writeFiles(root, { "Reader.nnwtheme/Info.plist": "not a plist" });
+		const result = run(root, "check", "--no-open");
+		assert.notEqual(result.status, 0);
+		assert.doesNotMatch(result.stdout, /Hint:/);
+		assert.match(result.stderr, /Info\.plist/);
 	});
 
 	test("check hints at the catalog only when the theme has no fixtures", () => {
@@ -380,7 +415,7 @@ describe("small commands", () => {
 	test("guide prints each topic, the skill by default", () => {
 		const root = theme();
 		assert.match(run(root, "guide").stdout, /^# Create NetNewsWire themes/);
-		for (const topic of ["theme-format", "fixtures", "design-checklist", "publishing"]) {
+		for (const topic of GUIDE_TOPICS.slice(1)) {
 			const text = run(root, "guide", topic).stdout;
 			assert.ok(text.length > 200, topic);
 			assert.ok(!text.includes("uv run"), topic);

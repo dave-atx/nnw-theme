@@ -39,7 +39,7 @@ version, name it: `npx nnw-theme@2.0.0 check`.
 | `capture` | Explain how to capture a real article from NetNewsWire as a fixture |
 | `bump` | Increase the `Info.plist` `Version`, and the version Finder's Get Info shows, before a release; `--get-info-version` sets that one |
 | `marketplace enable` | Add the marketplace discovery topic on GitHub |
-| `guide [topic]` | Print the authoring guide: `skill`, `theme-format`, `fixtures`, `design-checklist`, `publishing` |
+| `guide [topic]` | Print the authoring guide: `skill`, `theme-format`, `fixtures`, `design-checklist`, `publishing`, `update-7.3` |
 | `completion <shell>` | Print shell completion for `fish`, `zsh`, or `bash` |
 
 Every command takes `--help`.
