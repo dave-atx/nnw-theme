@@ -3,7 +3,7 @@
 This guide is for people and agents building a theme with `nnw-theme`. Run the tool
 as `npx nnw-theme@2 <command>`; never install it globally or add it to the theme
 repository. Read another topic with `npx nnw-theme@2 guide <topic>`: `theme-format`,
-`fixtures`, `design-checklist`, or `publishing`.
+`fixtures`, `design-checklist`, `publishing`, or `update-7.3`.
 
 The upstream `dave-atx/netnewswire-theme-template` repository is a GitHub template.
 Work in the person's own repository made via **Use this template**, not in the
@@ -26,8 +26,9 @@ Mastodon, plus podcast and Media RSS enclosures.
 NetNewsWire 7.3 shows an article's audio, video, and attached images through two new
 macros, `primary_media` and `enclosures`. A theme should place both. Copy `template.html`
 to `template7.3.html`, which 7.3 reads instead and older releases ignore, add the macros
-there, and style their markup; the `theme-format` topic has the details, and `check`
-hints when a theme is missing either one.
+there, and style their markup. To update an existing theme, or when asked to add 7.3
+support, follow the `update-7.3` topic step by step; `check` hints when a theme is
+missing either macro.
 
 Iterate with this loop:
 
