@@ -1,10 +1,21 @@
 import { join } from "node:path";
 import { interactive, promptConfirm } from "../interactive.ts";
 import type { Args } from "../main.ts";
+import type { PlistDict } from "../plist.ts";
 import { findRoot, findTheme, readPlist, ThemeError, writePlist } from "../project.ts";
 
-const GET_INFO_VERSION = "CFBundleGetInfoString";
+/** The key behind the Version row in Finder's Get Info window. */
+const GET_INFO_VERSION = "CFBundleShortVersionString";
+/** What 2.6.0 wrote instead. Finder's window ignores it, so bump moves it. */
+const OLD_GET_INFO_VERSION = "CFBundleGetInfoString";
 const COPYRIGHT = "NSHumanReadableCopyright";
+
+/** The plist with oldKey renamed to newKey in place, so the file's key order holds. */
+function renameKey(metadata: PlistDict, oldKey: string, newKey: string): PlistDict {
+	return Object.fromEntries(
+		Object.entries(metadata).map(([key, value]) => [key === oldKey ? newKey : key, value]),
+	);
+}
 
 /** The one asked for, or the current one with its last number increased; none if the theme has none. */
 function nextGetInfoVersion(
@@ -29,7 +40,10 @@ function nextGetInfoVersion(
 export default async function bump({ values }: Args): Promise<void> {
 	const root = findRoot();
 	const theme = findTheme(root);
-	const metadata = readPlist(theme);
+	let metadata = readPlist(theme);
+	const moved =
+		metadata[GET_INFO_VERSION] === undefined && metadata[OLD_GET_INFO_VERSION] !== undefined;
+	if (moved) metadata = renameKey(metadata, OLD_GET_INFO_VERSION, GET_INFO_VERSION);
 	const current = metadata.Version;
 	if (typeof current !== "number" || !Number.isInteger(current)) {
 		throw new ThemeError("Info.plist Version must be an integer");
@@ -60,6 +74,9 @@ export default async function bump({ values }: Args): Promise<void> {
 	writePlist(join(theme, "Info.plist"), metadata);
 	const also = [
 		getInfo ? ` Get Info version is now ${getInfo}.` : "",
+		moved
+			? ` Moved it from ${OLD_GET_INFO_VERSION} to ${GET_INFO_VERSION}, which Get Info shows.`
+			: "",
 		copyright ? ` Added "${copyright}" for Get Info.` : "",
 	].join("");
 	console.log(`Version is now ${proposed}.${also} Commit this change before publishing.`);

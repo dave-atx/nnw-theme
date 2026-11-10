@@ -108,7 +108,7 @@ describe("init", () => {
 					ThemeIdentifier: "io.github.theme-author.quiet-reader",
 					Name: "Quiet Reader",
 					CreatorHomePage: "https://github.com/theme-author",
-					CFBundleGetInfoString: "1.0.0",
+					CFBundleShortVersionString: "1.0.0",
 					NSHumanReadableCopyright: `Copyright © ${new Date().getFullYear()} Theme Author`,
 				}),
 			),
@@ -312,7 +312,7 @@ describe("bump and release-check", () => {
 		const plist = readFileSync(infoPlist(root), "utf8");
 		assert.match(plist, /<integer>5<\/integer>/);
 		assert.ok(plist.includes(`<string>${copyright}</string>`));
-		assert.ok(!plist.includes("CFBundleGetInfoString"));
+		assert.ok(!plist.includes("CFBundleShortVersionString"));
 	});
 
 	test("check hints at a missing Get Info version", () => {
@@ -320,14 +320,19 @@ describe("bump and release-check", () => {
 			getInfoHint(join(theme(), "Reader.nnwtheme")) ?? "",
 			/bump --get-info-version/,
 		);
-		const root = theme(1, { CFBundleGetInfoString: "1.0" });
+		const root = theme(1, { CFBundleShortVersionString: "1.0" });
 		assert.equal(getInfoHint(join(root, "Reader.nnwtheme")), undefined);
+		const old = theme(1, { CFBundleGetInfoString: "1.0" });
+		assert.match(
+			getInfoHint(join(old, "Reader.nnwtheme")) ?? "",
+			/next `npx nnw-theme@2 bump` moves it/,
+		);
 	});
 
 	test("bump increases the Get Info version's last number and keeps the copyright", () => {
 		const copyright = "Copyright © 2026 A. Reader";
 		const root = theme(20, {
-			CFBundleGetInfoString: "2.9",
+			CFBundleShortVersionString: "2.9",
 			NSHumanReadableCopyright: copyright,
 		});
 		const result = run(root, "bump", "--yes");
@@ -341,13 +346,38 @@ describe("bump and release-check", () => {
 			CreatorHomePage: "https://reader.test",
 			CreatorName: "A. Reader",
 			Version: 21,
-			CFBundleGetInfoString: "2.10",
+			CFBundleShortVersionString: "2.10",
 			NSHumanReadableCopyright: copyright,
 		});
 	});
 
+	test("bump moves a 2.6.0 CFBundleGetInfoString to where Get Info reads it", () => {
+		const copyright = "Copyright © 2026 A. Reader";
+		const root = theme(20, {
+			CFBundleGetInfoString: "2.14",
+			NSHumanReadableCopyright: copyright,
+		});
+		const result = run(root, "bump", "--yes");
+		assert.equal(
+			result.stdout,
+			"Version is now 21. Get Info version is now 2.15. Moved it from CFBundleGetInfoString " +
+				"to CFBundleShortVersionString, which Get Info shows. Commit this change before publishing.\n",
+		);
+		const plist = parsePlist(readFileSync(infoPlist(root), "utf8")) as Record<string, unknown>;
+		assert.deepEqual(Object.keys(plist), [
+			"ThemeIdentifier",
+			"Name",
+			"CreatorHomePage",
+			"CreatorName",
+			"Version",
+			"CFBundleShortVersionString",
+			"NSHumanReadableCopyright",
+		]);
+		assert.equal(plist.CFBundleShortVersionString, "2.15");
+	});
+
 	test("bump keeps a Get Info version's zero padding", () => {
-		const root = theme(1, { CFBundleGetInfoString: "2026.01" });
+		const root = theme(1, { CFBundleShortVersionString: "2026.01" });
 		run(root, "bump", "--yes");
 		assert.match(readFileSync(infoPlist(root), "utf8"), /<string>2026\.02<\/string>/);
 	});
@@ -358,12 +388,12 @@ describe("bump and release-check", () => {
 		assert.equal(result.status, 0, result.stderr);
 		assert.match(
 			readFileSync(infoPlist(root), "utf8"),
-			/<key>CFBundleGetInfoString<\/key>\n\t<string>3\.0<\/string>/,
+			/<key>CFBundleShortVersionString<\/key>\n\t<string>3\.0<\/string>/,
 		);
 	});
 
 	test("bump changes nothing when it can't increase the Get Info version", () => {
-		const root = theme(4, { CFBundleGetInfoString: "2.0 beta" });
+		const root = theme(4, { CFBundleShortVersionString: "2.0 beta" });
 		const before = readFileSync(infoPlist(root), "utf8");
 		const result = run(root, "bump", "--yes");
 		assert.equal(result.status, 1);

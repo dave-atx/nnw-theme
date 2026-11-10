@@ -96,7 +96,15 @@ export function mediaHint(root: string, theme: string): string | undefined {
 
 /** A one-line pointer to bump, for a theme whose Get Info window shows no version. */
 export function getInfoHint(theme: string): string | undefined {
-	if (readPlist(theme).CFBundleGetInfoString !== undefined) return undefined;
+	const metadata = readPlist(theme);
+	if (metadata.CFBundleShortVersionString !== undefined) return undefined;
+	if (metadata.CFBundleGetInfoString !== undefined) {
+		return (
+			"Hint: Finder's Get Info shows no version for this theme, because it reads " +
+			"CFBundleShortVersionString, not CFBundleGetInfoString. Your next " +
+			"`npx nnw-theme@2 bump` moves it."
+		);
+	}
 	return (
 		"Hint: Finder's Get Info shows no version for this theme. " +
 		"At your next release, `npx nnw-theme@2 bump --get-info-version 1.0.0` adds one."
