@@ -18,6 +18,15 @@ is the Copyright row. Finder's window ignores `CFBundleGetInfoString`, which
 `nnw-theme` 2.6.0 wrote; `bump` moves it to `CFBundleShortVersionString`. `init` writes both. `bump` keeps the
 version current and adds a missing copyright from `CreatorName` and the current year.
 
+One optional Boolean key changes the article view. With `grayscaleIcon` set to
+`<true/>`, NetNewsWire 7.3 and later show the feed icon or author avatar in
+`avatar_src` in grayscale; article images stay in color. The template and CSS don't
+change, and older releases ignore the key. Spell it exactly, with a lowercase `g`:
+NetNewsWire can't load a theme whose `grayscaleIcon` is a string or a number, which
+`check` reports as an error, and it ignores `GrayscaleIcon`, which `check` warns
+about. Previews make the icon gray the same way. Readers can also turn on Grayscale
+icons in NetNewsWire's settings, so a theme's icon can be gray even without the key.
+
 NetNewsWire performs two single-pass substitutions. First, article values replace
 macros in `template.html`; then that body and combined core/theme CSS enter a platform
 page skeleton. Unknown macros remain literal, and substituted values are not scanned

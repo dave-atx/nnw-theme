@@ -509,6 +509,43 @@ describe("render", () => {
 		assert.ok(page.includes('<img src="data:image/svg+xml;base64,'));
 	});
 
+	test("a grayscaleIcon theme gets its feed icon in grayscale", () => {
+		const directory = temporaryDirectory();
+		const snapshot = makeSnapshot(directory);
+		const avatar = (grayscaleIcon: boolean | string | undefined) => {
+			const theme = join(directory, `${String(grayscaleIcon)}.nnwtheme`);
+			writeFiles(theme, {
+				"stylesheet.css": "",
+				"template.html": '<img src="[[avatar_src]]">',
+				...(grayscaleIcon === undefined
+					? {}
+					: {
+							"Info.plist":
+								'<?xml version="1.0" encoding="UTF-8"?>\n<plist version="1.0"><dict>' +
+								`<key>grayscaleIcon</key>${
+									typeof grayscaleIcon === "boolean"
+										? `<${grayscaleIcon}/>`
+										: `<string>${grayscaleIcon}</string>`
+								}</dict></plist>`,
+						}),
+			});
+			const page = renderPage(
+				theme,
+				{ feed_link_title: "Feed" },
+				normalTargets()[0] as RenderTarget,
+				snapshot,
+			);
+			const src = page.match(/<img src="data:image\/svg\+xml;base64,([^"]+)"/)?.[1] ?? "";
+			return Buffer.from(src, "base64").toString("utf8");
+		};
+		assert.ok(avatar(true).includes("<feColorMatrix"));
+		// The generated tile is wrapped whole, at its own size.
+		assert.ok(avatar(true).includes('width="96" height="96"'));
+		for (const color of [false, "true", undefined]) {
+			assert.ok(!avatar(color).includes("feColorMatrix"), String(color));
+		}
+	});
+
 	test("theme scripts can be removed without removing NetNewsWire's scripts", () => {
 		const directory = temporaryDirectory();
 		const theme = join(directory, "Test.nnwtheme");

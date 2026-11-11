@@ -83,6 +83,11 @@ The `theme-format` topic's Enclosures and Primary media sections have the full m
 and its classes. The built-in `article` and `kitchen-sink` fixtures have no media, so
 keep the two new fixtures: they're how `check` tests it from now on.
 
+A theme with a monochrome look can also show the feed icon in grayscale, the way
+NetNewsWire's bundled Gray theme does, by adding `<key>grayscaleIcon</key><true/>` to
+`Info.plist`. Ask the person first; it's a design choice, and the template stays the
+same. The `theme-format` topic has the details.
+
 ## 4. Check it
 
 Run `npx nnw-theme@2 check --no-open` and fix what it reports until it passes. It fails

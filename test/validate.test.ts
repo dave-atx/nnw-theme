@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { renameSync, writeFileSync } from "node:fs";
+import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, test } from "node:test";
 import { zipSync } from "fflate";
@@ -97,6 +97,56 @@ describe("source validation", () => {
 			errors.includes("Info.plist Name ('Different') must match bundle name ('Reader')"),
 		);
 		assert.ok(errors.some((error) => error.includes("HTTP(S)")));
+	});
+
+	test("grayscaleIcon may be true or false", () => {
+		for (const grayscaleIcon of [true, false]) {
+			const theme = makeTheme(temporaryDirectory());
+			writeFileSync(join(theme, "Info.plist"), buildPlist({ ...metadata(), grayscaleIcon }));
+			const report = validateSource(theme);
+			assert.deepEqual([report.errors, report.warnings], [[], []]);
+		}
+	});
+
+	test("grayscaleIcon of any other type keeps NetNewsWire from loading the theme", () => {
+		for (const grayscaleIcon of ["true", 1, new PlistReal(1)]) {
+			const theme = makeTheme(temporaryDirectory());
+			writeFileSync(join(theme, "Info.plist"), buildPlist({ ...metadata(), grayscaleIcon }));
+			assert.deepEqual(validateSource(theme).errors, [
+				"Info.plist grayscaleIcon must be <true/> or <false/>; " +
+					"NetNewsWire can't load a theme where it is any other type",
+			]);
+		}
+	});
+
+	test("a misspelled grayscaleIcon is a warning", () => {
+		const theme = makeTheme(temporaryDirectory());
+		writeFileSync(
+			join(theme, "Info.plist"),
+			buildPlist({ ...metadata(), GrayscaleIcon: true, greyscaleIcons: true }),
+		);
+		const report = validateSource(theme);
+		assert.deepEqual(report.errors, []);
+		assert.deepEqual(report.warnings, [
+			"Info.plist key GrayscaleIcon is not grayscaleIcon, so NetNewsWire ignores it",
+			"Info.plist key greyscaleIcons is not grayscaleIcon, so NetNewsWire ignores it",
+		]);
+	});
+
+	test("a packaged grayscaleIcon of the wrong type is rejected", () => {
+		const theme = makeTheme(temporaryDirectory());
+		writeFileSync(
+			join(theme, "Info.plist"),
+			buildPlist({ ...metadata(), grayscaleIcon: "yes" }),
+		);
+		const files = Object.fromEntries(
+			["Info.plist", "template.html", "stylesheet.css"].map((name) => [
+				`Reader.nnwtheme/${name}`,
+				readFileSync(join(theme, name)),
+			]),
+		);
+		const { errors } = validateArchive(zipSync(files), "Reader.nnwtheme.zip");
+		assert.ok(errors.some((error) => error.startsWith("Info.plist grayscaleIcon must be")));
 	});
 
 	test("a real Version is not an integer", () => {

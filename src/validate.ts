@@ -1,6 +1,7 @@
 import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { Parser } from "htmlparser2";
+import { GRAYSCALE_ICON_KEY as GRAYSCALE_ICON } from "./grayscale-icon.ts";
 import { type PlistDict, PlistReal, parsePlist } from "./plist.ts";
 import {
 	PLACEHOLDER_MARKER,
@@ -23,6 +24,7 @@ const REQUIRED_PLIST_FIELDS = [
 	["CreatorName", "str"],
 	["Version", "int"],
 ] as const;
+const GRAYSCALE_ICON_MISSPELLING = /^gr[ae]y[-_ ]?scale[-_ ]?icons?$/i;
 const PLACEHOLDERS = ["starter", "example.com", "your name", "change me", "todo"];
 const SAFE_BUNDLE_NAME = /^[^/\\\0]+$/;
 const OPTIONAL_THEME_FILE = /^(?:LICENSE|NOTICE)(?:\.[A-Za-z0-9-]+)?$/;
@@ -94,6 +96,30 @@ function isInt(value: unknown): value is number {
 	return typeof value === "number" && Number.isInteger(value);
 }
 
+/**
+ * NetNewsWire decodes grayscaleIcon as an optional Bool, so any other type makes the
+ * whole Info.plist fail to decode and the theme fail to load. A key spelled any other
+ * way is ignored without a word, so name the near misses.
+ */
+function checkGrayscaleIcon(metadata: PlistDict, report: ValidationReport): void {
+	if (
+		Object.hasOwn(metadata, GRAYSCALE_ICON) &&
+		typeof metadata[GRAYSCALE_ICON] !== "boolean"
+	) {
+		report.errors.push(
+			`Info.plist ${GRAYSCALE_ICON} must be <true/> or <false/>; ` +
+				"NetNewsWire can't load a theme where it is any other type",
+		);
+	}
+	for (const key of Object.keys(metadata)) {
+		if (key !== GRAYSCALE_ICON && GRAYSCALE_ICON_MISSPELLING.test(key)) {
+			report.warnings.push(
+				`Info.plist key ${key} is not ${GRAYSCALE_ICON}, so NetNewsWire ignores it`,
+			);
+		}
+	}
+}
+
 export function validateMetadata(metadata: PlistDict, bundleStem: string): ValidationReport {
 	const report = new ValidationReport();
 	for (const [field, type] of REQUIRED_PLIST_FIELDS) {
@@ -103,6 +129,7 @@ export function validateMetadata(metadata: PlistDict, bundleStem: string): Valid
 			report.errors.push(`Info.plist: ${field} must be a non-empty ${type}`);
 		}
 	}
+	checkGrayscaleIcon(metadata, report);
 	if (report.errors.length) return report;
 	const text = (field: string) => metadata[field] as string;
 
