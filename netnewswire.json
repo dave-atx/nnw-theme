@@ -1,6 +1,6 @@
 {
-	"release": "mac-7.3b6",
-	"commit": "9a07d406177e896826e33952fb16c06e21c19000",
+	"release": "mac-7.3b8",
+	"commit": "287bea608059bdab77ddb842ff4119bf7b4940ea",
 	"files": [
 		{
 			"destination": "LICENSE",

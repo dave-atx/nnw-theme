@@ -18,11 +18,13 @@ import {
 	fixtureImages,
 	placeEnclosures,
 } from "./enclosures.ts";
+import { GRAYSCALE_ICON_KEY, grayscaleIcon } from "./grayscale-icon.ts";
 import { renderingInputs } from "./netnewswire.ts";
 import {
 	type Fixture,
 	fixturePath,
 	readFixture,
+	readPlist,
 	repositoryFixtures,
 	TEMPLATE_7_3_FILE,
 	ThemeError,
@@ -552,6 +554,7 @@ function fixtureMapping(
 	target: RenderTarget,
 	template: string,
 	media?: string,
+	grayscale = false,
 ): Record<string, string> {
 	const mapping: Record<string, string> = {};
 	for (const key of TEMPLATE_KEYS) mapping[key] = pyStr(fixture[key] ?? "");
@@ -583,6 +586,7 @@ function fixtureMapping(
 	if (!mapping.avatar_src || fetches(mapping.avatar_src)) {
 		mapping.avatar_src = avatarDataURI(mapping.feed_link_title ?? "");
 	}
+	if (grayscale) mapping.avatar_src = grayscaleIcon(mapping.avatar_src);
 	if (target.ios) {
 		// NetNewsWire leaves this macro unresolved on iOS; empty renders the same.
 		mapping.text_size_class = "";
@@ -591,6 +595,16 @@ function fixtureMapping(
 		mapping.text_size_class = pyStr(fixture.text_size_class || fallback);
 	}
 	return mapping;
+}
+
+/** Whether NetNewsWire shows this theme's feed icon in grayscale; check reports a bad key. */
+function usesGrayscaleIcon(theme: string): boolean {
+	if (!existsSync(join(theme, "Info.plist"))) return false;
+	try {
+		return readPlist(theme)[GRAYSCALE_ICON_KEY] === true;
+	} catch {
+		return false;
+	}
 }
 
 function read(path: string): string {
@@ -717,7 +731,10 @@ export function renderPage(
 	);
 
 	const template = themeTemplate(theme, target);
-	let body = substitute(template, fixtureMapping(fixture, target, template, media));
+	let body = substitute(
+		template,
+		fixtureMapping(fixture, target, template, media, usesGrayscaleIcon(theme)),
+	);
 	if (!target.themeScripts) body = removeScripts(body);
 	let page = substitute(skeleton, {
 		title: fixture.title ?? "Theme preview",

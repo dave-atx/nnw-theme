@@ -18,6 +18,15 @@ is the Copyright row. Finder's window ignores `CFBundleGetInfoString`, which
 `nnw-theme` 2.6.0 wrote; `bump` moves it to `CFBundleShortVersionString`. `init` writes both. `bump` keeps the
 version current and adds a missing copyright from `CreatorName` and the current year.
 
+One optional Boolean key changes the article view. With `grayscaleIcon` set to
+`<true/>`, NetNewsWire 7.3b8 and later show the feed icon or author avatar in
+`avatar_src` in grayscale; article images stay in color. The template and CSS don't
+change, and older releases ignore the key. Spell it exactly, with a lowercase `g`:
+NetNewsWire can't load a theme whose `grayscaleIcon` is a string or a number, which
+`check` reports as an error, and it ignores `GrayscaleIcon`, which `check` warns
+about. Previews make the icon gray the same way. Readers can also turn on Grayscale
+icons in NetNewsWire's settings, so a theme's icon can be gray even without the key.
+
 NetNewsWire performs two single-pass substitutions. First, article values replace
 macros in `template.html`; then that body and combined core/theme CSS enter a platform
 page skeleton. Unknown macros remain literal, and substituted values are not scanned
@@ -120,10 +129,11 @@ renders `template7.3.html` when it exists, and its older-NetNewsWire cases rende
 
 ## Pinned NetNewsWire
 
-The renderer pins NetNewsWire 7.3b6 for Mac (`mac-7.3b6`, commit
-`9a07d406177e896826e33952fb16c06e21c19000`), whose rendering files iOS 7.3 shares.
+The renderer pins NetNewsWire 7.3b8 for Mac (`mac-7.3b8`, commit
+`287bea608059bdab77ddb842ff4119bf7b4940ea`), whose rendering files iOS 7.3 shares.
 Enclosure support starts with 7.3b3, 7.3b4 keeps the footnote popover inside the
-article column, and 7.3b6 adds `primary_media` and `template7.3.html`. It uses upstream `core.css`, macOS and
+article column, 7.3b6 adds `primary_media` and `template7.3.html`, and 7.3b8 adds
+`grayscaleIcon`. It uses upstream `core.css`, macOS and
 iOS page skeletons, and `main.js`, `main_mac.js`, `main_ios.js`, and `newsfoot.js`.
 These files ship inside the `nnw-theme` package, verified by SHA-256, so previews work
 offline. iPhone and iPad share the iOS skeleton. WebKit native
