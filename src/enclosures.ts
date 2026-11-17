@@ -88,6 +88,13 @@ const YOUTUBE_EMBED_URL_PREFIX = "https://www.youtube-nocookie.com/embed/";
 const YOUTUBE_EMBED_PATHS = ["youtube.com/embed/", "youtube-nocookie.com/embed/"];
 const WORDPRESS_SIZE_SUFFIX = /-\d+x\d+(?=\.[A-Za-z0-9]+$)/;
 const ENGADGET_LARGE_IMAGE_PREFIX = "l-";
+const ENGADGET_IMAGE_DOMAINS = ["engadget.com"];
+const BRETT_TERPSTRA_IMAGE_DOMAINS = ["brettterpstra.com"];
+const BRETT_TERPSTRA_IMAGE_SUFFIXES = /(?:_fb)?(?:\.\d+)?(?=\.[A-Za-z0-9]+$)/g;
+const BLOGGER_IMAGE_DOMAINS = ["blogger.googleusercontent.com", "bp.blogspot.com"];
+const BLOGGER_THUMBNAIL_SIZE_PREFIX = "s72-";
+const SUBSTACK_IMAGE_DOMAINS = ["substackcdn.com", "substack-post-media.s3.amazonaws.com"];
+const SUBSTACK_TOP_IMAGE_MARKER = "&quot;topImage&quot;:true";
 const SHORT_POST_MAXIMUM_BODY_LENGTH = 2048;
 
 /** Foundation's URL(string:), enough for host and path: relative URLs have no host. */
@@ -204,11 +211,18 @@ function fileName(value: string): string | undefined {
 	}
 }
 
-/** Title (or file name), duration, and size, such as “Episode 311 · 1:54:09 · 54.9 MB”. */
-function audioCaption(attachment: Attachment): string {
+/**
+ * Title (or file name, linked to the audio file), duration, and size, such as
+ * “Episode 311 · 1:54:09 · 54.9 MB”.
+ */
+function audioCaptionHTML(attachment: Attachment): string {
 	const components: string[] = [];
-	const name = attachment.title || fileName(attachment.url);
-	if (name) components.push(name);
+	if (attachment.title) {
+		components.push(escapeXML(attachment.title));
+	} else {
+		const name = fileName(attachment.url);
+		if (name) components.push(`<a href="${escapeXML(attachment.url)}">${escapeXML(name)}</a>`);
+	}
 	if (attachment.duration_in_seconds !== undefined) {
 		components.push(durationString(attachment.duration_in_seconds));
 	}
@@ -252,27 +266,66 @@ function bodyEmbedsYouTubeVideo(stillImageURL: string, body: string): boolean {
 	);
 }
 
-function isEngadgetImage(value: string): boolean {
+/** RSWeb's SpecialCase.urlStringMatchesDomain(_:_:): the host, without www., is or ends in a domain. */
+function urlMatchesDomain(value: string, domains: readonly string[]): boolean {
 	const host =
 		parseURL(value)
 			?.host.toLowerCase()
 			.replace(/^www\./, "") ?? "";
-	return host === "engadget.com" || host.endsWith(".engadget.com");
+	return !!host && domains.some((domain) => host === domain || host.endsWith(`.${domain}`));
+}
+
+/** ArticleRenderingSpecialCases.removingEngadgetImagePrefix(_:imageURL:). */
+function removingEngadgetImagePrefix(name: string, imageURL: string): string {
+	return name.startsWith(ENGADGET_LARGE_IMAGE_PREFIX) &&
+		urlMatchesDomain(imageURL, ENGADGET_IMAGE_DOMAINS)
+		? name.slice(ENGADGET_LARGE_IMAGE_PREFIX.length)
+		: name;
 }
 
 /**
- * The last two path components, lowercased, without a WordPress size suffix or Engadget
- * size prefix. Ignores the host and query: resized copies often come through a service.
+ * ArticleRenderingSpecialCases.removingBrettTerpstraImageSuffixes(_:imageURL:): his
+ * `media:content` is the body's image with a version number, often as a square `_fb` crop.
+ */
+function removingBrettTerpstraImageSuffixes(name: string, imageURL: string): string {
+	return urlMatchesDomain(imageURL, BRETT_TERPSTRA_IMAGE_DOMAINS)
+		? name.replace(BRETT_TERPSTRA_IMAGE_SUFFIXES, "")
+		: name;
+}
+
+/** ArticleRenderingSpecialCases.isBloggerThumbnail(_:): Blogger's 72-pixel square crop. */
+function isBloggerThumbnail(value: string): boolean {
+	if (!urlMatchesDomain(value, BLOGGER_IMAGE_DOMAINS)) return false;
+	return (pathComponents(value) ?? []).some((component) =>
+		component.startsWith(BLOGGER_THUMBNAIL_SIZE_PREFIX),
+	);
+}
+
+/**
+ * ArticleRenderingSpecialCases.bodyHasSubstackTopImage(imageURL:body:): Substack's cover
+ * image is sometimes a separate upload of the body's top image, marked `"topImage":true`.
+ */
+function bodyHasSubstackTopImage(imageURL: string, body: string): boolean {
+	return (
+		urlMatchesDomain(imageURL, SUBSTACK_IMAGE_DOMAINS) &&
+		body.includes(SUBSTACK_TOP_IMAGE_MARKER)
+	);
+}
+
+/**
+ * The last two path components, lowercased, without a WordPress size suffix, Engadget
+ * size prefix, or Brett Terpstra version number and crop marker. Ignores the host and
+ * query: resized copies often come through a service.
  */
 function imageIdentity(value: string): string | undefined {
 	const components = pathComponents(value);
 	const last = components?.at(-1);
 	if (!components || last === undefined) return undefined;
-	const name = (
-		last.startsWith(ENGADGET_LARGE_IMAGE_PREFIX) && isEngadgetImage(value)
-			? last.slice(ENGADGET_LARGE_IMAGE_PREFIX.length)
-			: last
-	).replace(WORDPRESS_SIZE_SUFFIX, "");
+	const engadgetName = removingEngadgetImagePrefix(last, value);
+	const name = removingBrettTerpstraImageSuffixes(engadgetName, value).replace(
+		WORDPRESS_SIZE_SUFFIX,
+		"",
+	);
 	return [...components.slice(0, -1).slice(-1), name].join("/").toLowerCase();
 }
 
@@ -287,6 +340,7 @@ export function bodyImageIdentities(body: string, baseURL?: string): Set<string>
 
 function bodyContains(url: string, body: string, identities: ReadonlySet<string>): boolean {
 	if (bodyContainsURL(body, url) || bodyEmbedsYouTubeVideo(url, body)) return true;
+	if (bodyHasSubstackTopImage(url, body)) return true;
 	const identity = imageIdentity(url);
 	return identity !== undefined && identities.has(identity);
 }
@@ -304,28 +358,28 @@ function enclosureHTML(
 	if (medium === undefined) return undefined;
 	const src = escapeXML(attachment.url);
 	let mediaElement: string;
-	let caption: string | undefined;
+	let captionHTML: string | undefined;
 	switch (medium) {
 		case "audio":
 			mediaElement = `<audio controls preload="none" src="${src}"></audio>`;
-			caption = audioCaption(attachment);
+			captionHTML = audioCaptionHTML(attachment);
 			break;
 		case "video": {
 			let attributes = `controls preload="metadata" playsinline src="${src}"${dimensionAttributes(attachment)}`;
 			if (posterURL) attributes += ` poster="${escapeXML(posterURL)}"`;
 			mediaElement = `<video ${attributes}></video>`;
-			caption = attachment.title;
+			captionHTML = attachment.title && escapeXML(attachment.title);
 			break;
 		}
 		case "image":
 			mediaElement = `<img src="${src}" alt=""${dimensionAttributes(attachment)}>`;
-			caption = attachment.title;
+			captionHTML = attachment.title && escapeXML(attachment.title);
 			break;
 		default:
 			return undefined;
 	}
 	let html = `<div class="nnw-enclosure nnw-enclosure-${medium}">${mediaElement}`;
-	if (caption) html += `<div class="nnw-enclosure-caption">${escapeXML(caption)}</div>`;
+	if (captionHTML) html += `<div class="nnw-enclosure-caption">${captionHTML}</div>`;
 	return `${html}</div>`;
 }
 
@@ -357,7 +411,10 @@ function isVideo(attachment: Attachment): boolean {
 	return displayMedium(attachment) === "video" || youTubeEmbedURL(attachment.url) !== undefined;
 }
 
-/** The article image, else the first image attachment, else the thumbnail; undefined if in the body. */
+/**
+ * The article image, else the first image attachment, else the thumbnail unless it's
+ * Blogger's tiny crop; undefined if in the body.
+ */
 function primaryImage(
 	imageLink: string | undefined,
 	thumbnailLink: string | undefined,
@@ -373,7 +430,9 @@ function primaryImage(
 		};
 	} else {
 		image = attachments.find((attachment) => displayMedium(attachment) === "image");
-		if (!image && thumbnailLink) image = { url: thumbnailLink, medium: "image" };
+		if (!image && thumbnailLink && !isBloggerThumbnail(thumbnailLink)) {
+			image = { url: thumbnailLink, medium: "image" };
+		}
 	}
 	return image && !bodyContains(image.url, body, identities) ? image : undefined;
 }

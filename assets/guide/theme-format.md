@@ -78,10 +78,12 @@ The markup is fixed and carries no inline styles:
 
 Images and video carry the feed's `width` and `height` when it gives both; a caption
 appears only when there is text for it. The audio caption joins the title (else the
-file name), duration, and size with ` · `. A YouTube channel enclosure becomes the
-iframe player. Enclosures already in the body are skipped, including a resized
-copy at another URL or the still of a YouTube video the body embeds, and documents are
-never shown. A video uses the article's image, else its thumbnail, as its poster.
+file name, linked to the audio file), duration, and size with ` · `, so a theme that
+styles caption text should style a link in it too. A YouTube channel enclosure becomes
+the iframe player. Enclosures already in the body are skipped, including a resized
+copy at another URL, the still of a YouTube video the body embeds, or a Substack cover
+image when the body has its own top image. Documents are never shown. A video uses the
+article's image, else its thumbnail, as its poster.
 
 A template without `primary_media`, and a short untitled post, gets the article's image
 as the first image enclosure unless the body already shows it, even beside other
@@ -102,7 +104,7 @@ and an illegible caption.
 The `primary_media` macro places the article's main media, usually above the body: a
 video with the article image as its poster, else audio with the article image above
 it, else the article image. The image is the article's own, else the first image
-enclosure, else the thumbnail. Media already in the body is left out, and whatever
+enclosure, else the thumbnail, unless it's Blogger's 72-pixel crop. Media already in the body is left out, and whatever
 appears here is left out of the enclosures. A short untitled post, such as a Mastodon
 post, keeps its images in the enclosures, after the text. With nothing to show the
 macro is empty.
@@ -129,12 +131,12 @@ renders `template7.3.html` when it exists, and its older-NetNewsWire cases rende
 
 ## Pinned NetNewsWire
 
-The renderer pins NetNewsWire 7.3b8 for Mac (`mac-7.3b8`, commit
-`287bea608059bdab77ddb842ff4119bf7b4940ea`), whose rendering files iOS 7.3 shares.
+The renderer pins NetNewsWire 7.3b9 for Mac (`mac-7.3b9`, commit
+`5fc54daa6a5c1372a7f74dfb5c11919559ce7b4b`), whose rendering files iOS 7.3 shares.
 Enclosure support starts with 7.3b3, 7.3b4 keeps the footnote popover inside the
-article column, 7.3b6 adds `primary_media` and `template7.3.html`, and 7.3b8 adds
-`grayscaleIcon`. It uses upstream `core.css`, macOS and
-iOS page skeletons, and `main.js`, `main_mac.js`, `main_ios.js`, and `newsfoot.js`.
+article column, 7.3b6 adds `primary_media` and `template7.3.html`, 7.3b8 adds
+`grayscaleIcon`, and 7.3b9 links an untitled audio caption's file name. It uses
+upstream `core.css`, macOS and iOS page skeletons, and `main.js`, `main_mac.js`, `main_ios.js`, and `newsfoot.js`.
 These files ship inside the `nnw-theme` package, verified by SHA-256, so previews work
 offline. iPhone and iPad share the iOS skeleton. WebKit native
 color-scheme emulation controls light/dark captures; CSS is not rewritten.
