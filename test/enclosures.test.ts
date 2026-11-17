@@ -56,7 +56,11 @@ describe("enclosuresHTML, as NetNewsWire's EnclosuresHTMLTests", () => {
 				'<audio controls preload="none" src="http://traffic.libsyn.com/atpfm/atp311.mp3"></audio>',
 			),
 		);
-		assert.ok(html.includes("atp311.mp3 · 1:54:09 · 54.9 MB"));
+		assert.ok(
+			html.includes(
+				'<a href="http://traffic.libsyn.com/atpfm/atp311.mp3">atp311.mp3</a> · 1:54:09 · 54.9 MB',
+			),
+		);
 		assert.ok(html.includes(`<img src="${artwork}" alt="">`));
 		// The artwork leads, as NetNewsWire inserts it first.
 		assert.ok(html.indexOf("<img") < html.indexOf("<audio"));
@@ -151,9 +155,18 @@ describe("enclosuresHTML", () => {
 		assert.match(html, /poster="https:\/\/x\.test\/poster\.jpg"/);
 	});
 
-	test("an untitled audio enclosure is captioned by its decoded file name", () => {
-		const html = enclosures([{ url: "https://x.test/ep%20one.m4a?t=1" }], "", undefined);
-		assert.match(html, /<div class="nnw-enclosure-caption">ep one\.m4a<\/div>/);
+	test("an untitled audio enclosure is captioned by its decoded file name, linked", () => {
+		const html = enclosures([{ url: "https://x.test/ep%20one.m4a?t=1&a=<" }], "", undefined);
+		assert.ok(
+			html.includes(
+				'<div class="nnw-enclosure-caption"><a href="https://x.test/ep%20one.m4a?t=1&amp;a=&lt;">ep one.m4a</a></div>',
+			),
+		);
+	});
+
+	test("a titled audio enclosure's caption has no link", () => {
+		const html = enclosures([{ url: "https://x.test/ep.mp3", title: "Ep <1>" }], "", undefined);
+		assert.ok(html.includes('<div class="nnw-enclosure-caption">Ep &lt;1&gt;</div>'));
 	});
 });
 
@@ -340,6 +353,69 @@ describe("primary media, as NetNewsWire's EnclosuresHTMLTests", () => {
 				body: '<img src="https://s.yimg.com/images/intro-17.jpg">',
 			}).primaryMedia,
 			"",
+		);
+	});
+
+	// Silver Bulletin's "The NVIDIA story is a BFD": the enclosure is a separate upload of
+	// the body's top image.
+	test("a Substack cover image is left out when the body has its own top image", () => {
+		const attachment = {
+			url: "https://substack-post-media.s3.amazonaws.com/public/images/2c9ce7c8-f3df-4d86-b18f-f3a322cd6dc7_2560x1440.png",
+			mime_type: "image/jpeg",
+		};
+		const body =
+			'<figure><img src="https://substackcdn.com/image/fetch/w_1456/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F55fb8931-3455-417c-bc8f-35eda57075d3_848x444.webp" ' +
+			'data-attrs="{&quot;src&quot;:&quot;https://substack-post-media.s3.amazonaws.com/public/images/55fb8931-3455-417c-bc8f-35eda57075d3_848x444.webp&quot;,&quot;belowTheFold&quot;:false,&quot;topImage&quot;:true}" alt=""></figure>';
+		assert.equal(placed({ attachments: [attachment], body }).primaryMedia, "");
+		assert.match(
+			placed({ attachments: [attachment], body: body.replace(":true", ":false") }).primaryMedia,
+			/2c9ce7c8/,
+		);
+	});
+
+	// Brett Terpstra's "Web Excursions for November 14th, 2026" and "New nvALT browser
+	// extensions": media:content is the body's image with a version number, or a `_fb` crop.
+	test("a Brett Terpstra copy of the body's image is left out", () => {
+		for (const [imageURL, bodyURL] of [
+			[
+				"https://cdn3.brettterpstra.com/uploads/2017/03/web-exc-map.7542.jpg",
+				"https://cdn3.brettterpstra.com/uploads/2017/03/web-exc-map.jpg",
+			],
+			[
+				"https://cdn3.brettterpstra.com/uploads/2026/11/nvalt-extensions-rb_fb.7542.jpg",
+				"https://cdn3.brettterpstra.com/uploads/2026/11/nvalt-extensions-rb.7542.jpg",
+			],
+		] as const) {
+			const attachment = { url: imageURL, medium: "image" } as const;
+			const body = `<p><img src="${bodyURL}"></p>`;
+			assert.equal(
+				placed({ attachments: [attachment], thumbnailLink: imageURL, body }).primaryMedia,
+				"",
+				imageURL,
+			);
+		}
+		const elsewhere = "https://x.test/uploads/2017/03/web-exc-map.7542.jpg";
+		assert.match(
+			placed({
+				imageLink: elsewhere,
+				body: '<img src="https://x.test/uploads/2017/03/web-exc-map.jpg">',
+			}).primaryMedia,
+			/7542/,
+		);
+	});
+
+	// Cliff Mass Weather Blog's "The Large Effects of El Nino On Our Current Weather":
+	// media:thumbnail is Blogger's 72-pixel crop of the body's first image.
+	test("Blogger's tiny thumbnail is not used as the image", () => {
+		const folder =
+			"https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEg5OGZfA2gPDijOTJL2tNo2wUkYs";
+		const name = "Screenshot%202026-11-12%20at%207.24.04%E2%80%AFPM.png";
+		const thumbnailLink = `${folder}/s72-w395-h279-c/${name}`;
+		const body = `<p>Our current weather.</p><img height="279" src="${folder}/w395-h279/${name}" width="395" />`;
+		assert.equal(placed({ thumbnailLink, body }).primaryMedia, "");
+		assert.match(
+			placed({ thumbnailLink: `${folder}/s1600/${name}`, body }).primaryMedia,
+			/s1600/,
 		);
 	});
 
